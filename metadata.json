@@ -1,0 +1,8 @@
+{
+  "name": "Stitch & Scrap - Android Journal & Mood Diary",
+  "description": "Multi-journal Android digital scrapbook with mood tracking, nostalgic blog widgets (currently listening, reading), custom AI stickers with realistic physical filters, and writable washi tape.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common security primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation blueprints for entities
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'lastSyncedAt', 'createdAt'])
+        && data.uid == userId
+        && data.uid is string && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && (!('lastSyncedAt' in data) || (data.lastSyncedAt is string && data.lastSyncedAt.size() <= 64))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
+    }
+
+    function isValidJournal(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'themeColor', 'defaultPaper'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'description', 'themeColor', 'icon', 'defaultPaper', 'coverPattern', 'entryCount', 'createdAt', 'updatedAt'])
+        && data.userId == userId
+        && isValidId(data.id)
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.themeColor is string && data.themeColor.size() <= 32
+        && data.defaultPaper in ['lined', 'grid', 'dot', 'kraft', 'night', 'blush']
+        && (!('description' in data) || (data.description is string && data.description.size() <= 500))
+        && (!('icon' in data) || (data.icon is string && data.icon.size() <= 64))
+        && (!('coverPattern' in data) || (data.coverPattern is string && data.coverPattern.size() <= 32))
+        && (!('entryCount' in data) || data.entryCount is number)
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidJournalEntry(data, userId) {
+      return data.keys().hasAll(['id', 'journalId', 'userId', 'title', 'content', 'paperTexture'])
+        && data.keys().hasOnly(['id', 'journalId', 'userId', 'title', 'date', 'content', 'fontFamily', 'fontSize', 'textColor', 'paperTexture', 'blogMetadata', 'stickers', 'tapes', 'createdAt', 'updatedAt'])
+        && data.userId == userId
+        && isValidId(data.id)
+        && isValidId(data.journalId)
+        && data.title is string && data.title.size() <= 200
+        && data.content is string && data.content.size() <= 30000
+        && data.paperTexture in ['lined', 'grid', 'dot', 'kraft', 'night', 'blush']
+        && (!('fontFamily' in data) || data.fontFamily in ['handwriting', 'marker', 'typewriter', 'doodle', 'sans'])
+        && (!('fontSize' in data) || data.fontSize is number)
+        && (!('textColor' in data) || (data.textColor is string && data.textColor.size() <= 32))
+        && (!('date' in data) || (data.date is string && data.date.size() <= 80))
+        && (!('blogMetadata' in data) || data.blogMetadata is map)
+        && (!('stickers' in data) || (data.stickers is list && data.stickers.size() <= 100))
+        && (!('tapes' in data) || (data.tapes is list && data.tapes.size() <= 50))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidCustomSticker(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'imageUrl'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'imageUrl', 'model', 'aspectRatio', 'imageSize', 'createdAt'])
+        && data.userId == userId
+        && isValidId(data.id)
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.imageUrl is string && data.imageUrl.size() <= 2000000
+        && (!('model' in data) || (data.model is string && data.model.size() <= 64))
+        && (!('aspectRatio' in data) || (data.aspectRatio is string && data.aspectRatio.size() <= 16))
+        && (!('imageSize' in data) || (data.imageSize is string && data.imageSize.size() <= 8))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
+    }
+
+    function isValidMoodLog(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'moodId', 'label', 'emoji', 'intensity', 'loggedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'entryId', 'moodId', 'label', 'emoji', 'intensity', 'note', 'loggedAt'])
+        && data.userId == userId
+        && isValidId(data.id)
+        && data.moodId is string && data.moodId.size() <= 64
+        && data.label is string && data.label.size() <= 64
+        && data.emoji is string && data.emoji.size() <= 16
+        && data.intensity is number
+        && (!('entryId' in data) || isValidId(data.entryId))
+        && (!('note' in data) || (data.note is string && data.note.size() <= 300))
+        && data.loggedAt is string && data.loggedAt.size() <= 64;
+    }
+
+    // User profile matching
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // PII protection: never allow listing users
+      allow create: if isOwner(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid;
+      allow delete: if isOwner(userId);
+
+      // User's Journals Subcollection
+      match /journals/{journalId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(journalId) && isValidJournal(incoming(), userId);
+        allow update: if isOwner(userId)
+          && isValidId(journalId)
+          && isValidJournal(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(journalId);
+      }
+
+      // User's Journal Entries Subcollection
+      match /entries/{entryId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(entryId) && isValidJournalEntry(incoming(), userId);
+        allow update: if isOwner(userId)
+          && isValidId(entryId)
+          && isValidJournalEntry(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+
+      // User's Custom Stickers Stash Subcollection
+      match /customStickers/{stickerId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(stickerId) && isValidCustomSticker(incoming(), userId);
+        allow update: if isOwner(userId)
+          && isValidId(stickerId)
+          && isValidCustomSticker(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(stickerId);
+      }
+
+      // User's Mood Logs Subcollection
+      match /moodLogs/{moodLogId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(moodLogId) && isValidMoodLog(incoming(), userId);
+        allow update: if isOwner(userId)
+          && isValidId(moodLogId)
+          && isValidMoodLog(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(moodLogId);
+      }
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account and backup sync state",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "lastSyncedAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email"]
+    },
+    "Journal": {
+      "title": "Journal",
+      "description": "A notebook or journal category owned by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 500 },
+        "themeColor": { "type": "string", "maxLength": 32 },
+        "icon": { "type": "string", "maxLength": 64 },
+        "defaultPaper": { "type": "string", "enum": ["lined", "grid", "dot", "kraft", "night", "blush"] },
+        "coverPattern": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "name", "themeColor", "defaultPaper"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "A rich scrapbook journal entry with text, mood, stickers, and washi tapes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "journalId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 80 },
+        "content": { "type": "string", "maxLength": 30000 },
+        "fontFamily": { "type": "string", "enum": ["handwriting", "marker", "typewriter", "doodle", "sans"] },
+        "fontSize": { "type": "number" },
+        "textColor": { "type": "string", "maxLength": 32 },
+        "paperTexture": { "type": "string", "enum": ["lined", "grid", "dot", "kraft", "night", "blush"] },
+        "blogMetadata": { "type": "object" },
+        "stickers": { "type": "array" },
+        "tapes": { "type": "array" },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "journalId", "userId", "title", "content", "paperTexture"]
+    },
+    "CustomSticker": {
+      "title": "CustomSticker",
+      "description": "Custom generated AI stickers or uploaded stickers saved to user stash",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "imageUrl": { "type": "string", "maxLength": 2000000 },
+        "model": { "type": "string", "maxLength": 64 },
+        "aspectRatio": { "type": "string", "maxLength": 16 },
+        "imageSize": { "type": "string", "maxLength": 8 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "name", "imageUrl"]
+    },
+    "MoodLog": {
+      "title": "MoodLog",
+      "description": "Mood tracking history record for timeline and sync",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "entryId": { "type": "string", "maxLength": 128 },
+        "moodId": { "type": "string", "maxLength": 64 },
+        "label": { "type": "string", "maxLength": 64 },
+        "emoji": { "type": "string", "maxLength": 16 },
+        "intensity": { "type": "number" },
+        "note": { "type": "string", "maxLength": 300 },
+        "loggedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "moodId", "label", "emoji", "intensity", "loggedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User private profile and sync metadata"
+    },
+    "/users/{userId}/journals/{journalId}": {
+      "schema": "Journal",
+      "description": "User's notebook collections"
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "JournalEntry",
+      "description": "User's journal entries containing text, blog metadata, stickers, and washi tapes"
+    },
+    "/users/{userId}/customStickers/{stickerId}": {
+      "schema": "CustomSticker",
+      "description": "User's saved custom stickers and AI artwork"
+    },
+    "/users/{userId}/moodLogs/{moodLogId}": {
+      "schema": "MoodLog",
+      "description": "User's historical mood tracking entries"
+    }
+  }
+}

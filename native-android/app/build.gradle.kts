@@ -25,6 +25,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Uses debug signing so CI/local "release" APKs are installable without a private keystore.
+            // For Play Store / production distribution, configure a real release keystore (do not commit it).
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

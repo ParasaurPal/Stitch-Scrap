@@ -1,6 +1,15 @@
 package com.stitchandscrap.nativeapp.ui.screens
 
 import android.net.Uri
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Paint as AndroidPaint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,6 +41,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +74,149 @@ private fun fontFor(name: String): FontFamily = when (name) {
     else -> FontFamily.Cursive
 }
 
+private fun exportScrapbookPdf(context: Context, uri: Uri, entry: JournalEntry) {
+    val document = PdfDocument()
+    try {
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val paper = when (entry.paperTexture) {
+            "night" -> android.graphics.Color.rgb(31, 34, 48)
+            "kraft", "vintage-torn-collage" -> android.graphics.Color.rgb(245, 230, 200)
+            "blush", "pink-grid-wavy", "strawberry-gingham" -> android.graphics.Color.rgb(255, 242, 247)
+            "lavender-grid-wavy" -> android.graphics.Color.rgb(248, 244, 255)
+            else -> android.graphics.Color.rgb(255, 253, 247)
+        }
+        canvas.drawColor(paper)
+        val dark = entry.paperTexture == "night"
+        val ink = runCatching { android.graphics.Color.parseColor(entry.textColor) }
+            .getOrDefault(if (dark) android.graphics.Color.WHITE else android.graphics.Color.rgb(55, 45, 40))
+        val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { color = ink }
+        val guide = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = if (dark) 0x33FFFFFF else 0x228A7568
+            strokeWidth = 0.7f
+        }
+        when (entry.paperTexture) {
+            "lined", "blush" -> {
+                var y = 42f
+                while (y < 842f) { canvas.drawLine(30f, y, 565f, y, guide); y += 27f }
+            }
+            "grid", "math-grid-stars", "lavender-grid-wavy" -> {
+                var x = 30f
+                while (x < 595f) { canvas.drawLine(x, 0f, x, 842f, guide); x += 24f }
+                var y = 24f
+                while (y < 842f) { canvas.drawLine(0f, y, 595f, y, guide); y += 24f }
+            }
+            "dot" -> {
+                var y = 12f
+                while (y < 842f) {
+                    var x = 12f
+                    while (x < 595f) { canvas.drawCircle(x, y, 1.1f, guide); x += 24f }
+                    y += 24f
+                }
+            }
+        }
+
+        val titlePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink; textSize = 27f; typeface = Typeface.create("casual", Typeface.BOLD)
+        }
+        val datePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink; alpha = 180; textSize = 11f; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        }
+        canvas.drawText(entry.date.take(70), 42f, 54f, datePaint)
+        val title = entry.title.ifBlank { "Untitled scrapbook page" }
+        val titleLayout = StaticLayout.Builder.obtain(title, 0, title.length,
+            TextPaint(titlePaint), 510).setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setIncludePad(false).build()
+        canvas.save()
+        canvas.translate(42f, 72f)
+        titleLayout.draw(canvas)
+        canvas.restore()
+
+        val bodyStyle = (if (entry.isBold) Typeface.BOLD else Typeface.NORMAL) or
+            (if (entry.isItalic) Typeface.ITALIC else Typeface.NORMAL)
+        val bodyPaint = TextPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink
+            textSize = entry.fontSize.coerceIn(12, 36).toFloat()
+            typeface = when (entry.fontFamily) {
+                "typewriter" -> Typeface.create(Typeface.MONOSPACE, bodyStyle)
+                "marker" -> Typeface.create("sans-serif-condensed", bodyStyle)
+                "sans" -> Typeface.create(Typeface.SANS_SERIF, bodyStyle)
+                else -> Typeface.create("casual", bodyStyle)
+            }
+            if (entry.isUnderlined) flags = flags or AndroidPaint.UNDERLINE_TEXT_FLAG
+        }
+        val body = entry.content.replace(Regex("<[^>]*>"), "").ifBlank { " " }
+        val bodyLayout = StaticLayout.Builder.obtain(body, 0, body.length, bodyPaint, 510)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(7f, 1.12f)
+            .setIncludePad(false).build()
+        canvas.save()
+        canvas.translate(42f, 160f)
+        bodyLayout.draw(canvas)
+        canvas.restore()
+
+        entry.tapes.sortedBy { it.zIndex }.forEach { tape ->
+            val cx = tape.x / 100f * 595f
+            val cy = tape.y / 100f * 842f
+            val rect = RectF(cx - tape.width * 0.65f, cy - tape.height * 0.65f,
+                cx + tape.width * 0.65f, cy + tape.height * 0.65f)
+            val tapePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                color = when (tape.pattern) {
+                    "dots" -> android.graphics.Color.rgb(251, 207, 232)
+                    "stripes", "caution" -> android.graphics.Color.rgb(253, 230, 138)
+                    "kraft" -> android.graphics.Color.rgb(231, 211, 176)
+                    "lavender" -> android.graphics.Color.rgb(221, 214, 254)
+                    "cyan" -> android.graphics.Color.rgb(165, 243, 252)
+                    "frosted" -> android.graphics.Color.rgb(235, 240, 245)
+                    else -> android.graphics.Color.rgb(233, 213, 255)
+                }
+                alpha = (tape.opacity.coerceIn(0f, 1f) * 255).toInt()
+            }
+            canvas.save()
+            canvas.rotate(tape.rotation, cx, cy)
+            canvas.drawRoundRect(rect, 5f, 5f, tapePaint)
+            val tapeTextPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                color = runCatching { android.graphics.Color.parseColor(tape.textColor) }.getOrDefault(android.graphics.Color.DKGRAY)
+                textSize = 13f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                textAlign = AndroidPaint.Align.CENTER
+            }
+            canvas.drawText(tape.text.take(36), cx, cy + 4f, tapeTextPaint)
+            canvas.restore()
+        }
+
+        entry.stickers.sortedBy { it.zIndex }.forEach { sticker ->
+            val cx = sticker.x / 100f * 595f
+            val cy = sticker.y / 100f * 842f
+            val w = sticker.width * sticker.scale * 1.15f
+            val h = sticker.height * sticker.scale * 1.15f
+            canvas.save()
+            canvas.rotate(sticker.rotation, cx, cy)
+            if (sticker.src.startsWith("emoji:")) {
+                val emojiPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                    textSize = minOf(w, h).coerceAtLeast(24f) * 0.8f
+                    textAlign = AndroidPaint.Align.CENTER
+                }
+                canvas.drawText(sticker.src.removePrefix("emoji:"), cx, cy + emojiPaint.textSize * 0.32f, emojiPaint)
+            } else {
+                runCatching {
+                    context.contentResolver.openInputStream(Uri.parse(sticker.src))?.use { BitmapFactory.decodeStream(it) }
+                }.getOrNull()?.let { bitmap ->
+                    val dst = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
+                    canvas.drawBitmap(bitmap, null, dst, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG))
+                    bitmap.recycle()
+                }
+            }
+            canvas.restore()
+        }
+        document.finishPage(page)
+        context.contentResolver.openOutputStream(uri)?.use { output -> document.writeTo(output) }
+            ?: throw IllegalStateException("Could not open the selected PDF destination.")
+    } finally {
+        document.close()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
@@ -81,6 +234,11 @@ fun EditorScreen(
     var showMoodSheet by remember { mutableStateOf(false) }
     var showPageDesign by remember { mutableStateOf(false) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val context = LocalContext.current
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) runCatching { exportScrapbookPdf(context, uri, draft) }
+            .onFailure { android.util.Log.e("StitchScrap", "PDF export failed", it) }
+    }
     val textColors = listOf("#292524", "#7F1D1D", "#9D174D", "#6B21A8", "#1D4ED8", "#166534", "#FFFFFF")
     val papers = listOf(
         "lined" to "Notebook", "grid" to "Math grid", "dot" to "Dot grid",
@@ -130,6 +288,10 @@ fun EditorScreen(
                     IconButton(onClick = { showMoodSheet = true }) { Icon(Icons.Default.Mood, "Mood and widgets") }
                     IconButton(onClick = { showStickerSheet = true }) { Icon(Icons.Default.AddPhotoAlternate, "Add photo or sticker") }
                     IconButton(onClick = { showTapeSheet = true }) { Icon(Icons.Default.StickyNote2, "Add washi tape") }
+                    TextButton(onClick = {
+                        val safeName = draft.title.ifBlank { "scrapbook-page" }.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().ifBlank { "scrapbook-page" }
+                        pdfLauncher.launch("$safeName.pdf")
+                    }) { Text("PDF", color = Color.White, fontWeight = FontWeight.Bold) }
                     IconButton(onClick = { save() }) { Icon(Icons.Default.Save, "Save page") }
                     IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete page", tint = MaterialTheme.colorScheme.error) }
                 },

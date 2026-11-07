@@ -519,21 +519,66 @@ fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, savedPhotos:
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTapeSheet(onDismiss: () -> Unit, onAdd: (pattern: String, text: String) -> Unit) {
+fun AddTapeSheet(
+    onDismiss: () -> Unit,
+    onAdd: (pattern: String, text: String, textColor: String, fontFamily: String) -> Unit
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("★ FAVORITE MEMORY ★") }
     var pattern by remember { mutableStateOf("grid") }
+    var textColor by remember { mutableStateOf("#BE185D") }
+    var fontFamily by remember { mutableStateOf("marker") }
+    val colors = listOf("#BE185D", "#854D0E", "#065F46", "#334155", "#581C87", "#0E7490", "#292524")
+    val phrases = listOf("★ FAVORITE MEMORY ★", "TOP SECRET", "CHAPTER ONE", "COZY VIBES", "LOVE THIS", "GOOD DAYS")
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Add Washi Tape", style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Tape text (writable)") }, modifier = Modifier.fillMaxWidth())
+        Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Washi tape studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Choose a pattern, add a phrase, and style your tape.", style = MaterialTheme.typography.bodySmall)
+            Surface(shape = RoundedCornerShape(8.dp), color = when (pattern) {
+                "dots" -> Color(0xFFFBCFE8)
+                "stripes", "caution" -> Color(0xFFFDE68A)
+                "kraft" -> Color(0xFFE7D3B0)
+                "lavender" -> Color(0xFFDDD6FE)
+                "cyan" -> Color(0xFFA5F3FC)
+                "frosted" -> Color(0xFFE8EDF2)
+                else -> Color(0xFFE9D5FF)
+            }) {
+                Box(Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) {
+                    Text(text.ifBlank { "Your tape preview" }, color = parseColor(textColor, Color(0xFFBE185D)),
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                }
+            }
+            OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Tape text") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Text("Quick phrases", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                phrases.forEach { phrase -> AssistChip(onClick = { text = phrase }, label = { Text(phrase) }) }
+            }
             Text("Pattern", style = MaterialTheme.typography.labelLarge)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("grid", "dots", "stripes", "kraft", "caution", "lavender", "frosted", "cyan").forEach { p ->
                     FilterChip(selected = pattern == p, onClick = { pattern = p }, label = { Text(p) })
                 }
             }
-            Button(onClick = { onAdd(pattern, text) }, modifier = Modifier.fillMaxWidth()) { Text("Add Tape") }
+            Text("Ink color", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                colors.forEach { hex ->
+                    Box(Modifier.size(30.dp).clip(CircleShape).background(parseColor(hex))
+                        .border(if (textColor == hex) 3.dp else 1.dp,
+                            if (textColor == hex) MaterialTheme.colorScheme.primary else Color.Gray, CircleShape)
+                        .clickable { textColor = hex })
+                }
+            }
+            Text("Lettering", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("handwriting", "marker", "typewriter", "mono", "doodle").forEach { font ->
+                    FilterChip(selected = fontFamily == font, onClick = { fontFamily = font }, label = { Text(font) })
+                }
+            }
+            Button(onClick = { onAdd(pattern, text, textColor, fontFamily) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Add washi tape to page")
+            }
             Spacer(Modifier.height(16.dp))
         }
     }

@@ -30,6 +30,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -189,6 +191,20 @@ fun EditorScreen(
                     Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = parseColor(draft.textColor).copy(alpha = 0.18f))
                     Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChip(selected = draft.isBold, onClick = { draft = draft.copy(isBold = !draft.isBold) },
+                            label = { Text("B", fontWeight = FontWeight.Bold) })
+                        FilterChip(selected = draft.isItalic, onClick = { draft = draft.copy(isItalic = !draft.isItalic) },
+                            label = { Text("I", fontStyle = FontStyle.Italic) })
+                        FilterChip(selected = draft.isUnderlined, onClick = { draft = draft.copy(isUnderlined = !draft.isUnderlined) },
+                            label = { Text("U", textDecoration = TextDecoration.Underline) })
+                        Text("BODY STYLE", style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF8B756A), fontWeight = FontWeight.Bold)
+                    }
                     OutlinedTextField(
                         value = draft.content,
                         onValueChange = { draft = draft.copy(content = it) },
@@ -196,6 +212,9 @@ fun EditorScreen(
                         modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 320.dp),
                         textStyle = TextStyle(fontFamily = fontFor(draft.fontFamily),
                             fontSize = draft.fontSize.coerceIn(12, 36).sp,
+                            fontWeight = if (draft.isBold) FontWeight.Bold else FontWeight.Normal,
+                            fontStyle = if (draft.isItalic) FontStyle.Italic else FontStyle.Normal,
+                            textDecoration = if (draft.isUnderlined) TextDecoration.Underline else TextDecoration.None,
                             color = parseColor(draft.textColor), lineHeight = (draft.fontSize.coerceIn(12, 36) * 1.65f).sp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = Color.White.copy(alpha = 0.12f),

@@ -46,8 +46,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.stitchandscrap.nativeapp.data.createDieCutSticker
 import com.stitchandscrap.nativeapp.data.model.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -231,6 +233,8 @@ fun EditorScreen(
     var draft by remember(entry.id) { mutableStateOf(entry) }
     var selectedStickerId by remember { mutableStateOf<String?>(null) }
     var selectedTapeId by remember { mutableStateOf<String?>(null) }
+    var processingStickerId by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     var showStickerSheet by remember { mutableStateOf(false) }
     var showTapeSheet by remember { mutableStateOf(false) }
     var showMoodSheet by remember { mutableStateOf(false) }
@@ -448,6 +452,23 @@ fun EditorScreen(
                         draft = draft.copy(stickers = draft.stickers + copy)
                         selectedStickerId = copy.id
                     },
+                    onCutout = { threshold, borderWidth ->
+                        coroutineScope.launch {
+                            processingStickerId = selectedSticker.id
+                            val processed = createDieCutSticker(context, selectedSticker.src, threshold, borderWidth)
+                            if (processed != null) {
+                                draft = draft.copy(stickers = draft.stickers.map {
+                                    if (it.id == selectedSticker.id) it.copy(src = processed, borderStyle = "none", borderWidth = 0) else it
+                                })
+                                android.widget.Toast.makeText(context, "Background removed — sticker saved", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, "Could not cut out this image. Try a photo with a simpler background.",
+                                    android.widget.Toast.LENGTH_LONG).show()
+                            }
+                            processingStickerId = null
+                        }
+                    },
+                    isProcessing = processingStickerId == selectedSticker.id,
                     onClose = { selectedStickerId = null }
                 )
             }

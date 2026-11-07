@@ -4,6 +4,7 @@ import { STOCK_STICKERS, StockSticker } from '../data/stickers';
 import { processImageEdgeDetection } from '../utils/edgeDetection';
 import { StickerTexture, StickerBorderPattern } from '../types/journal';
 import { sounds } from '../utils/sound';
+import { apiUrl } from '../lib/apiBase';
 
 interface StickerModalProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
     sounds.playClick();
 
     try {
-      const response = await fetch('/api/generate-sticker', {
+      const response = await fetch(apiUrl('/api/generate-sticker'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,7 +170,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
     setEdgeError(null);
     sounds.playClick();
     try {
-      const response = await fetch('/api/ai-edge-detection', {
+      const response = await fetch(apiUrl('/api/ai-edge-detection'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

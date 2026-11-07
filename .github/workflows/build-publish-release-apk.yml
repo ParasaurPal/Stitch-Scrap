@@ -56,6 +56,7 @@ jobs:
           APK_PATH=$(find native-android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
           APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -n 1)
           "$APKSIGNER" verify --print-certs "$APK_PATH" | grep -i "SHA-1"
+        working-directory: .
 
       - name: Locate release APK
         id: apk

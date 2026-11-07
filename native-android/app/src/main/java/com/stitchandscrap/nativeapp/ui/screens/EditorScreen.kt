@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.stitchandscrap.nativeapp.data.model.*
 import java.util.UUID
+import kotlin.math.roundToInt
 
 private fun newId(p: String) = "$p-${UUID.randomUUID().toString().take(8)}"
 private fun parseColor(hex: String, fallback: Color = Color(0xFFF472B6)): Color =

@@ -413,6 +413,7 @@ fun StickerPropertiesPanel(
     onDelete: () -> Unit,
     onDuplicate: () -> Unit,
     onCutout: (threshold: Int, borderWidth: Int) -> Unit,
+    onEditEdges: () -> Unit,
     isProcessing: Boolean,
     onClose: () -> Unit,
 ) {
@@ -471,6 +472,9 @@ fun StickerPropertiesPanel(
                 valueRange = 0f..24f, steps = 23)
             if (!sticker.src.startsWith("emoji:")) {
                 Divider()
+                OutlinedButton(onClick = onEditEdges, modifier = Modifier.fillMaxWidth()) {
+                    Text("✎  Refine sticker edges")
+                }
                 Text("Background removal", style = MaterialTheme.typography.labelLarge)
                 Text("Best for photos with a fairly plain background. Processing happens on this device.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

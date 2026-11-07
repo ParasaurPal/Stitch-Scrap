@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,7 +82,7 @@ fun EntriesScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     Column(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
                         Text("${entries.size} ${if (entries.size == 1) "page" else "pages"}",
                             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -89,7 +90,6 @@ fun EntriesScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                item { Spacer(Modifier.height(1.dp)) }
                 items(entries, key = { it.id }) { entry ->
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { onOpenEntry(entry.id) },

@@ -51,6 +51,8 @@ import kotlinx.coroutines.delay
 import java.util.UUID
 import kotlin.math.roundToInt
 
+private data class CanvasLayer(val zIndex: Int, val id: String, val isTape: Boolean)
+
 private fun newId(p: String) = "$p-${UUID.randomUUID().toString().take(8)}"
 private fun parseColor(hex: String, fallback: Color = Color(0xFFF472B6)): Color =
     runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrElse { fallback }
@@ -403,27 +405,32 @@ fun EditorScreen(
                     Spacer(Modifier.height(280.dp))
                 }
 
-                draft.tapes.sortedBy { it.zIndex }.forEach { tape ->
-                    TapeItem(
-                        tape = tape, selected = selectedTapeId == tape.id, canvasSize = canvasSize,
-                        onSelect = { selectedTapeId = tape.id; selectedStickerId = null },
-                        onMove = { dx, dy ->
-                            draft = draft.copy(tapes = draft.tapes.map {
-                                if (it.id == tape.id) it.copy(x = (it.x + dx).coerceIn(2f, 98f), y = (it.y + dy).coerceIn(2f, 98f)) else it
-                            })
-                        }
-                    )
-                }
-                draft.stickers.sortedBy { it.zIndex }.forEach { sticker ->
-                    StickerItem(
-                        sticker = sticker, selected = selectedStickerId == sticker.id, canvasSize = canvasSize,
-                        onSelect = { selectedStickerId = sticker.id; selectedTapeId = null },
-                        onMove = { dx, dy ->
-                            draft = draft.copy(stickers = draft.stickers.map {
-                                if (it.id == sticker.id) it.copy(x = (it.x + dx).coerceIn(0f, 100f), y = (it.y + dy).coerceIn(0f, 100f)) else it
-                            })
-                        }
-                    )
+                val layers = (draft.tapes.map { CanvasLayer(it.zIndex, it.id, true) } +
+                    draft.stickers.map { CanvasLayer(it.zIndex, it.id, false) }).sortedBy { it.zIndex }
+                layers.forEach { layer ->
+                    if (layer.isTape) {
+                        val tape = draft.tapes.find { it.id == layer.id }
+                        if (tape != null) TapeItem(
+                            tape = tape, selected = selectedTapeId == tape.id, canvasSize = canvasSize,
+                            onSelect = { selectedTapeId = tape.id; selectedStickerId = null },
+                            onMove = { dx, dy ->
+                                draft = draft.copy(tapes = draft.tapes.map {
+                                    if (it.id == tape.id) it.copy(x = (it.x + dx).coerceIn(2f, 98f), y = (it.y + dy).coerceIn(2f, 98f)) else it
+                                })
+                            }
+                        )
+                    } else {
+                        val sticker = draft.stickers.find { it.id == layer.id }
+                        if (sticker != null) StickerItem(
+                            sticker = sticker, selected = selectedStickerId == sticker.id, canvasSize = canvasSize,
+                            onSelect = { selectedStickerId = sticker.id; selectedTapeId = null },
+                            onMove = { dx, dy ->
+                                draft = draft.copy(stickers = draft.stickers.map {
+                                    if (it.id == sticker.id) it.copy(x = (it.x + dx).coerceIn(0f, 100f), y = (it.y + dy).coerceIn(0f, 100f)) else it
+                                })
+                            }
+                        )
+                    }
                 }
             }
 

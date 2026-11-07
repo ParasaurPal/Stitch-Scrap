@@ -50,6 +50,12 @@ class ScrapbookRepository(context: Context) {
         store.write("entries.json", _entries.value)
     }
 
+    suspend fun replaceAll(journals: List<Journal>, entries: List<JournalEntry>) = mutex.withLock {
+        _journals.value = journals
+        _entries.value = entries
+        persist()
+    }
+
     fun entriesForJournal(journalId: String): List<JournalEntry> =
         _entries.value.filter { it.journalId == journalId }
             .sortedByDescending { it.updatedAt.ifBlank { it.createdAt } }

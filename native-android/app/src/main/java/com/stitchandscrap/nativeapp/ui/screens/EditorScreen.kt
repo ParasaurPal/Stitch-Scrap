@@ -237,9 +237,6 @@ fun EditorScreen(
     var selectedStickerId by remember { mutableStateOf<String?>(null) }
     var selectedTapeId by remember { mutableStateOf<String?>(null) }
     var processingStickerId by remember { mutableStateOf<String?>(null) }
-    var processingAiStickerId by remember { mutableStateOf<String?>(null) }
-    var generatingAiSticker by remember { mutableStateOf(false) }
-    var aiStickerError by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     var showStickerSheet by remember { mutableStateOf(false) }
     var showTapeSheet by remember { mutableStateOf(false) }
@@ -248,9 +245,6 @@ fun EditorScreen(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val context = LocalContext.current
     val stickerPreferences = remember { context.getSharedPreferences("stitch_scrap_sticker_library", Context.MODE_PRIVATE) }
-    var aiServerUrl by remember {
-        mutableStateOf(stickerPreferences.getString("ai_server_url", "").orEmpty())
-    }
     var savedStickerPhotos by remember {
         mutableStateOf(stickerPreferences.getStringSet("saved_photos", emptySet())?.toList().orEmpty())
     }
@@ -548,38 +542,6 @@ fun EditorScreen(
             onDismiss = { showStickerSheet = false },
             onPickImage = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); showStickerSheet = false },
             savedPhotos = savedStickerPhotos,
-            aiServerUrl = aiServerUrl,
-            onAiServerUrlChange = {
-                aiServerUrl = it
-                stickerPreferences.edit().putString("ai_server_url", it.trim()).apply()
-            },
-            isGeneratingAi = generatingAiSticker,
-            aiError = aiStickerError,
-            onGenerateAi = { prompt ->
-                coroutineScope.launch {
-                    generatingAiSticker = true
-                    aiStickerError = null
-                    runCatching { StickerAiClient.generateSticker(context, aiServerUrl, prompt) }
-                        .onSuccess { generated ->
-                            val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
-                            val sticker = PlacedSticker(
-                                id = newId("ai"), src = generated, alt = prompt.take(80),
-                                x = 40f, y = 35f, width = 140f, height = 140f, zIndex = highest + 1,
-                                borderStyle = "diecut", borderWidth = 4, borderColor = "#ffffff",
-                                borderPattern = "solid", texture = "glossy"
-                            )
-                            draft = draft.copy(stickers = draft.stickers + sticker)
-                            savedStickerPhotos = (savedStickerPhotos + generated).distinct()
-                            stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
-                            selectedStickerId = sticker.id
-                            selectedTapeId = null
-                            showStickerSheet = false
-                            android.widget.Toast.makeText(context, "AI sticker added to your page and collection", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                        .onFailure { aiStickerError = it.message ?: "AI sticker generation failed" }
-                    generatingAiSticker = false
-                }
-            },
             onAddSavedPhoto = { src ->
                 val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
                 val sticker = PlacedSticker(

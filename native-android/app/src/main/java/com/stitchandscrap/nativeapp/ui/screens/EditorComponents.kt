@@ -407,7 +407,8 @@ fun TapeItem(
 }
 
 @Composable
-fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit, onClose: () -> Unit) {
+fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit, onCutout: (threshold: Int, borderWidth: Int) -> Unit, isProcessing: Boolean, onClose: () -> Unit) {
+    var threshold by remember(sticker.id) { mutableIntStateOf(26) }
     var borderWidth by remember(sticker.id) { mutableIntStateOf((sticker.borderWidth ?: 4).coerceIn(0, 24)) }
     var borderColor by remember(sticker.id) { mutableStateOf(sticker.borderColor ?: "#ffffff") }
     var borderPattern by remember(sticker.id) { mutableStateOf(sticker.borderPattern ?: "solid") }
@@ -460,6 +461,23 @@ fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> 
             Text("Border thickness: ${borderWidth}px", style = MaterialTheme.typography.labelMedium)
             Slider(value = borderWidth.toFloat(), onValueChange = { borderWidth = it.roundToInt(); applyBorder() },
                 valueRange = 0f..24f, steps = 23)
+            Divider()
+            Text("Background removal", style = MaterialTheme.typography.labelLarge)
+            Text("Best for photos with a fairly plain background. Processing happens on this device.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Sensitivity: ${threshold}", style = MaterialTheme.typography.labelSmall)
+            Slider(value = threshold.toFloat(), onValueChange = { threshold = it.roundToInt() },
+                valueRange = 5f..60f, steps = 54)
+            Button(onClick = { onCutout(threshold, borderWidth) }, enabled = !isProcessing,
+                modifier = Modifier.fillMaxWidth()) {
+                if (isProcessing) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Cutting out background…")
+                } else {
+                    Text("✂  Remove background & make sticker")
+                }
+            }
             Text("Border pattern", style = MaterialTheme.typography.labelMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("solid", "dashed", "dotted", "double").forEach { p ->

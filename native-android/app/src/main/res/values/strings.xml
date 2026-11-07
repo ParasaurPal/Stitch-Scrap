@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Stitch &amp; Scrap</string>
+    <string name="native_foundation_note">Native Android rewrite foundation (Jetpack Compose)</string>
+</resources>

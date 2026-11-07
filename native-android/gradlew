@@ -1,0 +1,12 @@
+#!/bin/sh
+# Gradle wrapper bootstrap (minimal). Uses system gradle if wrapper JAR is unavailable.
+APP_HOME=$(dirname "$0")
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+if [ -f "$WRAPPER_JAR" ]; then
+  exec java ${JAVA_OPTS} -jar "$WRAPPER_JAR" "$@"
+fi
+if command -v gradle >/dev/null 2>&1; then
+  exec gradle -Dorg.gradle.native=false -Paapt2FromMavenOverride="$(command -v aapt2 2>/dev/null)" "$@"
+fi
+echo "Gradle wrapper JAR not found and no system gradle available." >&2
+exit 1

@@ -195,7 +195,11 @@ fun StickerItem(
     val density = LocalDensity.current
     val w = with(density) { (sticker.width * sticker.scale).dp }
     val h = with(density) { (sticker.height * sticker.scale).dp }
-    val borderW = if (sticker.borderStyle == "none") 0 else (sticker.borderWidth ?: 0).coerceIn(0, 48)
+    val isEmojiSticker = sticker.src.startsWith("emoji:")
+    // Photo stickers already carry a die-cut outline in their transparent PNG.
+    // Never draw a rectangular frame around their image bounds.
+    val borderW = if (!isEmojiSticker || sticker.borderStyle == "none") 0
+        else (sticker.borderWidth ?: 0).coerceIn(0, 48)
     val borderColor = when (sticker.borderStyle) {
         "gold" -> Color(0xFFD6A83E)
         "neon" -> Color(0xFFFF4FCB)
@@ -252,7 +256,8 @@ fun StickerItem(
             Modifier.fillMaxSize().padding((borderW / 2).dp).let { m ->
                 if (borderW > 0 && pe == null) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
                 else m
-            }.clip(RoundedCornerShape(8.dp)).background(Color.Transparent),
+            }.let { m -> if (isEmojiSticker) m.clip(RoundedCornerShape(8.dp)) else m }
+                .background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             if (sticker.src.startsWith("emoji:")) {

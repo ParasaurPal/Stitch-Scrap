@@ -81,23 +81,104 @@ fun BlogWidgetsSummary(metadata: BlogMetadata, onClick: () -> Unit) {
 
 @Composable
 fun PaperPattern(texture: String) {
-    // Simple visual hint; full texture parity can be added with drawables/patterns.
-    val tint = when (texture) {
-        "night" -> Color.White.copy(alpha = 0.06f)
-        "kraft", "vintage-torn-collage" -> Color(0xFF8B6B4A).copy(alpha = 0.08f)
-        else -> Color(0xFFB8A89A).copy(alpha = 0.12f)
-    }
     Canvas(Modifier.fillMaxSize()) {
-        val step = 24.dp.toPx()
-        var x = 0f
-        while (x < size.width) {
-            drawLine(tint, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-            x += step
+        val base = when (texture) {
+            "night" -> Color.White.copy(alpha = 0.13f)
+            "kraft", "vintage-torn-collage" -> Color(0xFF8B6B4A).copy(alpha = 0.13f)
+            "lavender-grid-wavy" -> Color(0xFF9C83C7).copy(alpha = 0.15f)
+            "strawberry-gingham" -> Color(0xFFE879A8).copy(alpha = 0.12f)
+            "pink-grid-wavy", "blush" -> Color(0xFFE879A8).copy(alpha = 0.16f)
+            else -> Color(0xFF9A887A).copy(alpha = 0.14f)
         }
-        var y = 0f
-        while (y < size.height) {
-            drawLine(tint, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-            y += step
+        val step = 24.dp.toPx()
+        when (texture) {
+            "lined", "blush", "pink-grid-wavy" -> {
+                var y = step
+                while (y < size.height) {
+                    drawLine(base, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                    y += step
+                }
+                if (texture == "pink-grid-wavy") {
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(base.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, size.height), strokeWidth = 0.6.dp.toPx())
+                        x += step * 2
+                    }
+                }
+            }
+            "dot" -> {
+                var y = 10.dp.toPx()
+                while (y < size.height) {
+                    var x = 10.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(base, radius = 1.25.dp.toPx(), center = Offset(x, y))
+                        x += step
+                    }
+                    y += step
+                }
+            }
+            "night" -> {
+                var y = 18.dp.toPx()
+                var row = 0
+                while (y < size.height) {
+                    var x = (if (row % 2 == 0) 16.dp else 28.dp).toPx()
+                    while (x < size.width) {
+                        drawCircle(Color.White.copy(alpha = 0.6f), radius = 1.2.dp.toPx(), center = Offset(x, y))
+                        x += step * 1.7f
+                    }
+                    y += step * 1.6f
+                    row++
+                }
+            }
+            "strawberry-gingham" -> {
+                var y = 0f
+                var row = 0
+                while (y < size.height) {
+                    var x = 0f
+                    var col = 0
+                    while (x < size.width) {
+                        if ((row + col) % 2 == 0) {
+                            drawRect(base, topLeft = Offset(x, y), size = Size(step, step))
+                        }
+                        x += step
+                        col++
+                    }
+                    y += step
+                    row++
+                }
+            }
+            "kraft", "vintage-torn-collage" -> {
+                var y = 9.dp.toPx()
+                var row = 0
+                while (y < size.height) {
+                    var x = (if (row % 2 == 0) 12.dp else 21.dp).toPx()
+                    while (x < size.width) {
+                        drawCircle(base, radius = 1.1.dp.toPx(), center = Offset(x, y))
+                        x += step * 1.4f
+                    }
+                    y += step * 1.3f
+                    row++
+                }
+            }
+            else -> {
+                var x = 0f
+                while (x < size.width) {
+                    drawLine(base, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.dp.toPx())
+                    x += step
+                }
+                var y = 0f
+                while (y < size.height) {
+                    drawLine(base, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                    y += step
+                }
+                if (texture == "math-grid-stars") {
+                    var sx = 12.dp.toPx()
+                    while (sx < size.width) {
+                        drawCircle(base.copy(alpha = 0.75f), radius = 1.5.dp.toPx(), center = Offset(sx, 12.dp.toPx()))
+                        sx += step * 2
+                    }
+                }
+            }
         }
     }
 }

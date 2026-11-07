@@ -421,7 +421,7 @@ fun TapePropertiesPanel(tape: PlacedTape, onChange: (PlacedTape) -> Unit, onDele
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, onAddEmoji: (emoji: String, label: String) -> Unit) {
+fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, savedPhotos: List<String>, onAddSavedPhoto: (String) -> Unit, onAddEmoji: (emoji: String, label: String) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
@@ -464,6 +464,23 @@ fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, onAddEmoji: 
             Text("Choose a decoration or add one of your own photos.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("＋  Add photo from device") }
+            if (savedPhotos.isNotEmpty()) {
+                Text("My saved photo stickers", style = MaterialTheme.typography.labelLarge)
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(savedPhotos.size) { index ->
+                        val photo = savedPhotos[index]
+                        Surface(onClick = { onAddSavedPhoto(photo) }, shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                            AsyncImage(model = photo, contentDescription = "Saved photo sticker",
+                                modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)
+                        }
+                    }
+                }
+            }
             OutlinedTextField(value = query, onValueChange = { query = it },
                 label = { Text("Search stickers") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),

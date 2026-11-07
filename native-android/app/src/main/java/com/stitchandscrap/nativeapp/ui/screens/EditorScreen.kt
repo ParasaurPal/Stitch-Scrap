@@ -242,6 +242,7 @@ fun EditorScreen(
     var showTapeSheet by remember { mutableStateOf(false) }
     var showMoodSheet by remember { mutableStateOf(false) }
     var showPageDesign by remember { mutableStateOf(false) }
+    var showMoreActions by remember { mutableStateOf(false) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val context = LocalContext.current
     val stickerPreferences = remember { context.getSharedPreferences("stitch_scrap_sticker_library", Context.MODE_PRIVATE) }
@@ -309,16 +310,47 @@ fun EditorScreen(
                 },
                 navigationIcon = { IconButton(onClick = { save(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
-                    IconButton(onClick = { showPageDesign = true }) { Text("Aa", fontWeight = FontWeight.Bold) }
-                    IconButton(onClick = { showMoodSheet = true }) { Icon(Icons.Default.Mood, "Mood and widgets") }
-                    IconButton(onClick = { showStickerSheet = true }) { Icon(Icons.Default.AddPhotoAlternate, "Add photo or sticker") }
-                    IconButton(onClick = { showTapeSheet = true }) { Icon(Icons.Default.StickyNote2, "Add washi tape") }
-                    TextButton(onClick = {
-                        val safeName = draft.title.ifBlank { "scrapbook-page" }.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().ifBlank { "scrapbook-page" }
-                        pdfLauncher.launch("$safeName.pdf")
-                    }) { Text("PDF", color = Color.White, fontWeight = FontWeight.Bold) }
                     IconButton(onClick = { save() }) { Icon(Icons.Default.Save, "Save page") }
-                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete page", tint = MaterialTheme.colorScheme.error) }
+                    Box {
+                        IconButton(onClick = { showMoreActions = true }) {
+                            Text("⋮", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                        DropdownMenu(
+                            expanded = showMoreActions,
+                            onDismissRequest = { showMoreActions = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Page typography") },
+                                onClick = { showMoreActions = false; showPageDesign = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Mood & blog widgets") },
+                                onClick = { showMoreActions = false; showMoodSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add photo or sticker") },
+                                onClick = { showMoreActions = false; showStickerSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add washi tape") },
+                                onClick = { showMoreActions = false; showTapeSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export PDF") },
+                                onClick = {
+                                    showMoreActions = false
+                                    val safeName = draft.title.ifBlank { "scrapbook-page" }
+                                        .replace(Regex("[^A-Za-z0-9 _-]"), "").trim()
+                                        .ifBlank { "scrapbook-page" }
+                                    pdfLauncher.launch("$safeName.pdf")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete page", color = MaterialTheme.colorScheme.error) },
+                                onClick = { showMoreActions = false; onDelete() }
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF292524), titleContentColor = Color.White,
                     navigationIconContentColor = Color.White, actionIconContentColor = Color.White)

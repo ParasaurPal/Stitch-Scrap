@@ -6,6 +6,7 @@ import android.graphics.Canvas as NativeCanvas
 import android.graphics.Paint as NativePaint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.Path as NativePath
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -90,18 +91,16 @@ fun ManualStickerEdgeEditor(source: String, onDismiss: () -> Unit, onSave: (Stri
             xfermode = if (erase) PorterDuffXfermode(PorterDuff.Mode.CLEAR) else null
         }
         val c = NativeCanvas(edited)
-        if (erase) c.drawCircle(p.x, p.y, brush / 2f, NativePaint(NativePaint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.TRANSPARENT
+        val mask = NativePaint(NativePaint.ANTI_ALIAS_FLAG).apply {
             style = NativePaint.Style.FILL
-            xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-        }) else c.drawBitmap(original, null, null, NativePaint(NativePaint.ANTI_ALIAS_FLAG))
-        // Restore uses a clipped circle so only the touched area is brought back.
-        if (!erase) {
-            val restoreCanvas = NativeCanvas(edited)
-            restoreCanvas.save()
-            restoreCanvas.clipRect(p.x - brush, p.y - brush, p.x + brush, p.y + brush)
-            restoreCanvas.drawBitmap(original, 0f, 0f, NativePaint(NativePaint.ANTI_ALIAS_FLAG))
-            restoreCanvas.restore()
+            if (erase) xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        }
+        val path = NativePath().apply { addCircle(p.x, p.y, brush / 2f, NativePath.Direction.CW) }
+        if (erase) c.drawPath(path, mask) else {
+            c.save()
+            c.clipPath(path)
+            c.drawBitmap(original, 0f, 0f, NativePaint(NativePaint.ANTI_ALIAS_FLAG))
+            c.restore()
         }
         changed++
     }
@@ -134,14 +133,25 @@ fun ManualStickerEdgeEditor(source: String, onDismiss: () -> Unit, onSave: (Stri
                 }
                 Text("The cursor preview sits above your finger for a clearer view.", fontSize = 12.sp)
                 Canvas(Modifier.fillMaxWidth().height(330.dp).pointerInput(source, brush, erase, snap, snapStrength) {
+                    var previous: Offset? = null
                     fun point(p: Offset): Offset? = if (imageRect.width <= 0f || !imageRect.contains(p)) null else toBitmapPoint(p)
                     detectDragGestures(
-                        onDragStart = { p -> saveUndo(); touch = p; point(p)?.let { paintAt(it) } },
-                        onDrag = { change, _ -> change.consume(); touch = change.position; point(change.position)?.let { paintAt(it) } },
-                        onDragEnd = { touch = null }
+                        onDragStart = { p -> saveUndo(); previous = point(p); touch = p; previous?.let { paintAt(it) } },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            touch = change.position
+                            val next = point(change.position)
+                            val from = previous
+                            if (next != null && from != null) {
+                                val distance = hypot(next.x - from.x, next.y - from.y)
+                                val steps = (distance / (brush / 5f).coerceAtLeast(1f)).roundToInt().coerceAtLeast(1)
+                                for (i in 1..steps) paintAt(Offset(from.x + (next.x - from.x) * i / steps, from.y + (next.y - from.y) * i / steps))
+                            }
+                            previous = next
+                        },
+                        onDragEnd = { touch = null; previous = null },
+                        onDragCancel = { touch = null; previous = null }
                     )
-                }.pointerInput(source, brush, erase, snap, snapStrength) {
-                    detectTapGestures(onTap = { p -> if (imageRect.contains(p)) { saveUndo(); touch = p; point(p)?.let { paintAt(it) }; touch = null } })
                 }) {
                     canvasSize = size
                     val fit = min(size.width / edited.width, size.height / edited.height)

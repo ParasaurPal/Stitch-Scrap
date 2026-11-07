@@ -34,6 +34,7 @@ fun AppRoot(vm: AppViewModel) {
         composable("journals") {
             JournalsScreen(
                 journals = journals,
+                entries = entries,
                 ready = ready,
                 userEmail = userEmail,
                 syncMessage = syncMessage,

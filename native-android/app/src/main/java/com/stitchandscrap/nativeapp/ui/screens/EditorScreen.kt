@@ -236,6 +236,7 @@ fun EditorScreen(
     var selectedStickerId by remember { mutableStateOf<String?>(null) }
     var selectedTapeId by remember { mutableStateOf<String?>(null) }
     var processingStickerId by remember { mutableStateOf<String?>(null) }
+    var editingStickerId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     var showStickerSheet by remember { mutableStateOf(false) }
     var showTapeSheet by remember { mutableStateOf(false) }
@@ -470,8 +471,25 @@ fun EditorScreen(
                             processingStickerId = null
                         }
                     },
+                    onEditEdges = { editingStickerId = selectedSticker.id },
                     isProcessing = processingStickerId == selectedSticker.id,
                     onClose = { selectedStickerId = null }
+                )
+            }
+            val edgeSticker = draft.stickers.find { it.id == editingStickerId }
+            if (edgeSticker != null) {
+                ManualStickerEdgeEditor(
+                    source = edgeSticker.src,
+                    onDismiss = { editingStickerId = null },
+                    onSave = { editedSource ->
+                        draft = draft.copy(stickers = draft.stickers.map {
+                            if (it.id == edgeSticker.id) it.copy(src = editedSource) else it
+                        })
+                        savedStickerPhotos = (savedStickerPhotos + editedSource).distinct()
+                        stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
+                        editingStickerId = null
+                        android.widget.Toast.makeText(context, "Sticker edges saved", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
             val selectedTape = draft.tapes.find { it.id == selectedTapeId }

@@ -6,14 +6,16 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 class JsonStore(private val context: Context) {
-    val json: Json = Json {
+    @PublishedApi
+    internal val json: Json = Json {
         prettyPrint = true
         ignoreUnknownKeys = true
         encodeDefaults = true
         coerceInputValues = true
     }
 
-    private fun file(name: String): File = File(context.filesDir, name)
+    @PublishedApi
+    internal fun file(name: String): File = File(context.filesDir, name)
 
     inline fun <reified T> read(name: String, default: () -> T): T {
         val f = file(name)

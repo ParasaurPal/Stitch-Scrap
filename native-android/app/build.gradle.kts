@@ -14,8 +14,8 @@ android {
         applicationId = "com.stitchandscrap.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0-native"
+        versionCode = 3
+        versionName = "1.2.0-native"
         buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"ai-studio-stitchscrapandro-6608a6c6-bfbd-4cc6-9ec4-35f578ec9e57\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

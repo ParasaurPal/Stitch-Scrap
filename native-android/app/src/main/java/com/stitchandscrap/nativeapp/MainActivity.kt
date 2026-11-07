@@ -13,7 +13,7 @@ import com.stitchandscrap.nativeapp.ui.theme.StitchAndScrapTheme
 
 class MainActivity : ComponentActivity() {
     private val repo by lazy { ScrapbookRepository(applicationContext) }
-    private val vm: AppViewModel by viewModels { AppViewModelFactory(repo) }
+    private val vm: AppViewModel by viewModels { AppViewModelFactory(repo, applicationContext) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

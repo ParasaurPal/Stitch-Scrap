@@ -427,6 +427,14 @@ fun StickerPropertiesPanel(
     var borderColor by remember(sticker.id) { mutableStateOf(sticker.borderColor ?: "#ffffff") }
     var borderPattern by remember(sticker.id) { mutableStateOf(sticker.borderPattern ?: "solid") }
     var caption by remember(sticker.id) { mutableStateOf(sticker.caption.orEmpty()) }
+    var previewSize by remember { mutableStateOf(IntSize.Zero) }
+    val previewSticker = sticker.copy(
+        x = 50f,
+        y = 50f,
+        width = 132f,
+        height = 132f,
+        scale = (sticker.scale * 0.78f).coerceIn(0.24f, 2.34f)
+    )
     fun applyBorder() = onChange(sticker.copy(borderWidth = borderWidth, borderColor = borderColor, borderPattern = borderPattern))
     Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
         Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
@@ -437,6 +445,47 @@ fun StickerPropertiesPanel(
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                 TextButton(onClick = onClose) { Text("Done") }
             }
+            Text("Live sticker preview", style = MaterialTheme.typography.labelLarge)
+            Box(
+                Modifier.fillMaxWidth().height(184.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFE7E2E8))
+                    .then(Modifier)
+                    .also { },
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val tile = 16.dp.toPx()
+                    var y = 0f
+                    while (y < size.height) {
+                        var x = 0f
+                        while (x < size.width) {
+                            if (((x / tile).toInt() + (y / tile).toInt()) % 2 == 0) {
+                                drawRect(Color(0xFFF7F5F8), Offset(x, y), Size(tile, tile))
+                            }
+                            x += tile
+                        }
+                        y += tile
+                    }
+                }
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                    androidx.compose.runtime.LaunchedEffect(maxWidth, maxHeight) {
+                        previewSize = IntSize(
+                            with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.roundToPx() },
+                            with(androidx.compose.ui.platform.LocalDensity.current) { maxHeight.roundToPx() }
+                        )
+                    }
+                    StickerItem(
+                        sticker = previewSticker,
+                        selected = false,
+                        canvasSize = previewSize,
+                        onSelect = {},
+                        onMove = { _, _ -> }
+                    )
+                }
+            }
+            Text("Preview updates as you change settings below.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation - 15f)) }) { Text("↺ Rotate") }
                 OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation + 15f)) }) { Text("Rotate ↻") }

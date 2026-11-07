@@ -235,6 +235,10 @@ fun EditorScreen(
     var showPageDesign by remember { mutableStateOf(false) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val context = LocalContext.current
+    val stickerPreferences = remember { context.getSharedPreferences("stitch_scrap_sticker_library", Context.MODE_PRIVATE) }
+    var savedStickerPhotos by remember {
+        mutableStateOf(stickerPreferences.getStringSet("saved_photos", emptySet())?.toList().orEmpty())
+    }
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) {
             runCatching { exportScrapbookPdf(context, uri, draft) }
@@ -268,6 +272,8 @@ fun EditorScreen(
             runCatching {
                 context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
+            savedStickerPhotos = (savedStickerPhotos + it.toString()).distinct()
+            stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
             val highest = (draft.stickers.map { s -> s.zIndex } + draft.tapes.map { t -> t.zIndex }).maxOrNull() ?: 10
             val sticker = PlacedSticker(
                 id = newId("stk"), src = it.toString(), alt = "Photo sticker",
@@ -483,6 +489,20 @@ fun EditorScreen(
         AddStickerSheet(
             onDismiss = { showStickerSheet = false },
             onPickImage = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); showStickerSheet = false },
+            savedPhotos = savedStickerPhotos,
+            onAddSavedPhoto = { src ->
+                val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
+                val sticker = PlacedSticker(
+                    id = newId("stk"), src = src, alt = "Saved photo sticker",
+                    x = 40f, y = 35f, width = 140f, height = 140f, zIndex = highest + 1,
+                    borderStyle = "diecut", borderWidth = 4, borderColor = "#ffffff",
+                    borderPattern = "solid", texture = "glossy"
+                )
+                draft = draft.copy(stickers = draft.stickers + sticker)
+                selectedStickerId = sticker.id
+                selectedTapeId = null
+                showStickerSheet = false
+            },
             onAddEmoji = { emoji, label ->
                 val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
                 val sticker = PlacedSticker(

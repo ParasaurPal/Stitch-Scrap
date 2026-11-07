@@ -224,40 +224,72 @@ fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> 
     var borderWidth by remember(sticker.id) { mutableIntStateOf((sticker.borderWidth ?: 4).coerceIn(0, 24)) }
     var borderColor by remember(sticker.id) { mutableStateOf(sticker.borderColor ?: "#ffffff") }
     var borderPattern by remember(sticker.id) { mutableStateOf(sticker.borderPattern ?: "solid") }
-    fun apply() = onChange(sticker.copy(borderWidth = borderWidth, borderColor = borderColor, borderPattern = borderPattern))
+    var caption by remember(sticker.id) { mutableStateOf(sticker.caption.orEmpty()) }
+    fun applyBorder() = onChange(sticker.copy(borderWidth = borderWidth, borderColor = borderColor, borderPattern = borderPattern))
     Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
-        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Sticker: ${sticker.alt}", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Sticker: ${sticker.alt}", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onClose) { Text("Close") }
+                TextButton(onClick = onClose) { Text("Done") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation - 15f)) }) { Text("↺ Rotate") }
+                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation + 15f)) }) { Text("Rotate ↻") }
+                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale - 0.1f).coerceAtLeast(0.3f))) }) { Text("− Size") }
+                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale + 0.1f).coerceAtMost(3f))) }) { Text("+ Size") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation - 15f)) }) { Text("↺") }
-                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation + 15f)) }) { Text("↻") }
-                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale - 0.1f).coerceAtLeast(0.3f))) }) { Text("−") }
-                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale + 0.1f).coerceAtMost(3f))) }) { Text("+") }
+                OutlinedButton(onClick = { onChange(sticker.copy(isFlippedX = !sticker.isFlippedX)) }) {
+                    Text(if (sticker.isFlippedX) "Unflip" else "Flip horizontal")
+                }
+                OutlinedButton(onClick = { onChange(sticker.copy(zIndex = sticker.zIndex + 1)) }) { Text("Bring forward ↑") }
+                OutlinedButton(onClick = { onChange(sticker.copy(zIndex = (sticker.zIndex - 1).coerceAtLeast(0))) }) { Text("Send back ↓") }
             }
-            Text("Border (plain white solid available, selectable px thickness)", style = MaterialTheme.typography.labelLarge)
-            Text("Thickness: ${borderWidth}px")
-            Slider(value = borderWidth.toFloat(), onValueChange = { borderWidth = it.roundToInt(); apply() }, valueRange = 0f..24f, steps = 23)
-            Text("Pattern", style = MaterialTheme.typography.labelMedium)
+
+            Text("Photo filter", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("none", "vintage", "sepia", "monochrome", "warm", "cyan", "polaroid", "highcontrast").forEach { option ->
+                    FilterChip(selected = sticker.filter == option, onClick = { onChange(sticker.copy(filter = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Surface finish", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("none", "glossy", "holographic", "matte", "crinkled", "glitter", "acetate").forEach { option ->
+                    FilterChip(selected = sticker.texture == option, onClick = { onChange(sticker.copy(texture = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Sticker edge", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("diecut", "polaroid", "stamp", "gold", "neon", "none").forEach { option ->
+                    FilterChip(selected = sticker.borderStyle == option, onClick = { onChange(sticker.copy(borderStyle = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Border thickness: ${borderWidth}px", style = MaterialTheme.typography.labelMedium)
+            Slider(value = borderWidth.toFloat(), onValueChange = { borderWidth = it.roundToInt(); applyBorder() },
+                valueRange = 0f..24f, steps = 23)
+            Text("Border pattern", style = MaterialTheme.typography.labelMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("solid", "dashed", "dotted", "double").forEach { p ->
-                    FilterChip(selected = borderPattern == p, onClick = { borderPattern = p; apply() }, label = { Text(p) })
+                    FilterChip(selected = borderPattern == p, onClick = { borderPattern = p; applyBorder() }, label = { Text(p) })
                 }
             }
-            Text("Color (white = plain white border)", style = MaterialTheme.typography.labelMedium)
+            Text("Border color", style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf("#ffffff" to "White", "#111827" to "Dark", "#f472b6" to "Pink", "#38bdf8" to "Blue", "#f59e0b" to "Gold").forEach { (hex, name) ->
-                    val c = parseColor(hex)
-                    Box(
-                        Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(c)
-                            .border(if (borderColor.equals(hex, true)) 3.dp else 1.dp, if (borderColor.equals(hex, true)) MaterialTheme.colorScheme.primary else Color.Gray, RoundedCornerShape(8.dp))
-                            .clickable { borderColor = hex; apply() }
-                    )
+                listOf("#ffffff", "#111827", "#f472b6", "#38bdf8", "#f59e0b", "#a78bfa").forEach { hex ->
+                    Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(parseColor(hex))
+                        .border(if (borderColor.equals(hex, true)) 3.dp else 1.dp,
+                            if (borderColor.equals(hex, true)) MaterialTheme.colorScheme.primary else Color.Gray,
+                            RoundedCornerShape(8.dp))
+                        .clickable { borderColor = hex; applyBorder() })
                 }
             }
+            OutlinedTextField(value = caption, onValueChange = { caption = it; onChange(sticker.copy(caption = it)) },
+                label = { Text("Sticker caption (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
     }
 }

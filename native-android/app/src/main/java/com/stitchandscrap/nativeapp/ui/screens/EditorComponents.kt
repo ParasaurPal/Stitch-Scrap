@@ -8,14 +8,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -27,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -76,23 +82,104 @@ fun BlogWidgetsSummary(metadata: BlogMetadata, onClick: () -> Unit) {
 
 @Composable
 fun PaperPattern(texture: String) {
-    // Simple visual hint; full texture parity can be added with drawables/patterns.
-    val tint = when (texture) {
-        "night" -> Color.White.copy(alpha = 0.06f)
-        "kraft", "vintage-torn-collage" -> Color(0xFF8B6B4A).copy(alpha = 0.08f)
-        else -> Color(0xFFB8A89A).copy(alpha = 0.12f)
-    }
     Canvas(Modifier.fillMaxSize()) {
-        val step = 24.dp.toPx()
-        var x = 0f
-        while (x < size.width) {
-            drawLine(tint, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-            x += step
+        val base = when (texture) {
+            "night" -> Color.White.copy(alpha = 0.13f)
+            "kraft", "vintage-torn-collage" -> Color(0xFF8B6B4A).copy(alpha = 0.13f)
+            "lavender-grid-wavy" -> Color(0xFF9C83C7).copy(alpha = 0.15f)
+            "strawberry-gingham" -> Color(0xFFE879A8).copy(alpha = 0.12f)
+            "pink-grid-wavy", "blush" -> Color(0xFFE879A8).copy(alpha = 0.16f)
+            else -> Color(0xFF9A887A).copy(alpha = 0.14f)
         }
-        var y = 0f
-        while (y < size.height) {
-            drawLine(tint, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-            y += step
+        val step = 24.dp.toPx()
+        when (texture) {
+            "lined", "blush", "pink-grid-wavy" -> {
+                var y = step
+                while (y < size.height) {
+                    drawLine(base, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                    y += step
+                }
+                if (texture == "pink-grid-wavy") {
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(base.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, size.height), strokeWidth = 0.6.dp.toPx())
+                        x += step * 2
+                    }
+                }
+            }
+            "dot" -> {
+                var y = 10.dp.toPx()
+                while (y < size.height) {
+                    var x = 10.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(base, radius = 1.25.dp.toPx(), center = Offset(x, y))
+                        x += step
+                    }
+                    y += step
+                }
+            }
+            "night" -> {
+                var y = 18.dp.toPx()
+                var row = 0
+                while (y < size.height) {
+                    var x = (if (row % 2 == 0) 16.dp else 28.dp).toPx()
+                    while (x < size.width) {
+                        drawCircle(Color.White.copy(alpha = 0.6f), radius = 1.2.dp.toPx(), center = Offset(x, y))
+                        x += step * 1.7f
+                    }
+                    y += step * 1.6f
+                    row++
+                }
+            }
+            "strawberry-gingham" -> {
+                var y = 0f
+                var row = 0
+                while (y < size.height) {
+                    var x = 0f
+                    var col = 0
+                    while (x < size.width) {
+                        if ((row + col) % 2 == 0) {
+                            drawRect(base, topLeft = Offset(x, y), size = Size(step, step))
+                        }
+                        x += step
+                        col++
+                    }
+                    y += step
+                    row++
+                }
+            }
+            "kraft", "vintage-torn-collage" -> {
+                var y = 9.dp.toPx()
+                var row = 0
+                while (y < size.height) {
+                    var x = (if (row % 2 == 0) 12.dp else 21.dp).toPx()
+                    while (x < size.width) {
+                        drawCircle(base, radius = 1.1.dp.toPx(), center = Offset(x, y))
+                        x += step * 1.4f
+                    }
+                    y += step * 1.3f
+                    row++
+                }
+            }
+            else -> {
+                var x = 0f
+                while (x < size.width) {
+                    drawLine(base, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.dp.toPx())
+                    x += step
+                }
+                var y = 0f
+                while (y < size.height) {
+                    drawLine(base, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                    y += step
+                }
+                if (texture == "math-grid-stars") {
+                    var sx = 12.dp.toPx()
+                    while (sx < size.width) {
+                        drawCircle(base.copy(alpha = 0.75f), radius = 1.5.dp.toPx(), center = Offset(sx, 12.dp.toPx()))
+                        sx += step * 2
+                    }
+                }
+            }
         }
     }
 }
@@ -108,10 +195,37 @@ fun StickerItem(
     val density = LocalDensity.current
     val w = with(density) { (sticker.width * sticker.scale).dp }
     val h = with(density) { (sticker.height * sticker.scale).dp }
-    val borderW = (sticker.borderWidth ?: 0).coerceIn(0, 48)
-    val borderColor = parseColor(sticker.borderColor, Color.White)
+    val isEmojiSticker = sticker.src.startsWith("emoji:")
+    // Photo stickers already carry a die-cut outline in their transparent PNG.
+    // Never draw a rectangular frame around their image bounds.
+    val borderW = if (!isEmojiSticker || sticker.borderStyle == "none") 0
+        else (sticker.borderWidth ?: 0).coerceIn(0, 48)
+    val borderColor = when (sticker.borderStyle) {
+        "gold" -> Color(0xFFD6A83E)
+        "neon" -> Color(0xFFFF4FCB)
+        else -> parseColor(sticker.borderColor, Color.White)
+    }
     val pattern = sticker.borderPattern ?: "solid"
     val pe = pathEffectFor(pattern)
+    val filter = when (sticker.filter) {
+        "monochrome" -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+        "sepia", "vintage" -> ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+            0.393f, 0.769f, 0.189f, 0f, 0f,
+            0.349f, 0.686f, 0.168f, 0f, 0f,
+            0.272f, 0.534f, 0.131f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f
+        )))
+        "warm" -> ColorFilter.tint(Color(0x33F59E0B))
+        "cyan" -> ColorFilter.tint(Color(0x3345D9E8))
+        "polaroid" -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.72f) })
+        "highcontrast" -> ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+            1.25f, 0f, 0f, 0f, -0.1f,
+            0f, 1.25f, 0f, 0f, -0.1f,
+            0f, 0f, 1.25f, 0f, -0.1f,
+            0f, 0f, 0f, 1f, 0f
+        )))
+        else -> null
+    }
 
     Box(
         modifier = Modifier
@@ -140,9 +254,10 @@ fun StickerItem(
     ) {
         Box(
             Modifier.fillMaxSize().padding((borderW / 2).dp).let { m ->
-                if (borderW > 0 && pe == null && pattern in listOf("solid", "double", "groove", "ridge", "inset", "outset")) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
+                if (borderW > 0 && pe == null) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
                 else m
-            }.clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.85f)),
+            }.let { m -> if (isEmojiSticker) m.clip(RoundedCornerShape(8.dp)) else m }
+                .background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             if (sticker.src.startsWith("emoji:")) {
@@ -151,9 +266,26 @@ fun StickerItem(
                 AsyncImage(
                     model = sticker.src,
                     contentDescription = sticker.alt,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = if (sticker.isFlippedX) -1f else 1f },
                     contentScale = ContentScale.Fit,
+                    colorFilter = filter,
                 )
+            }
+            when (sticker.texture) {
+                "glossy" -> Box(Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.28f), Color.Transparent, Color.Transparent))))
+                "holographic" -> Box(Modifier.fillMaxSize().background(
+                    Brush.linearGradient(listOf(Color(0x44FF80AB), Color(0x4438BDF8), Color(0x44C084FC), Color(0x44FDE68A)))))
+                "glitter" -> Box(Modifier.fillMaxSize().background(
+                    Brush.radialGradient(listOf(Color.White.copy(alpha = 0.25f), Color.Transparent))))
+                "acetate" -> Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.18f)))
+                else -> Unit
+            }
+            if (!sticker.caption.isNullOrBlank()) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.48f)).padding(3.dp)) {
+                    Text(sticker.caption, color = Color.White, fontSize = 9.sp, maxLines = 2,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                }
             }
         }
         if (borderW > 0 && pe != null) {
@@ -214,49 +346,175 @@ fun TapeItem(
             .clickable { onSelect() },
         contentAlignment = Alignment.Center
     ) {
-        Text(tape.text, color = parseColor(tape.textColor, Color(0xFF3D2B1F)), fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.Center)
+        Canvas(Modifier.fillMaxSize()) {
+            val ink = Color(0xFF6B4B5B).copy(alpha = 0.16f * tape.opacity)
+            when (tape.pattern) {
+                "dots" -> {
+                    var y = 5.dp.toPx()
+                    while (y < size.height) {
+                        var x = 5.dp.toPx()
+                        while (x < size.width) {
+                            drawCircle(ink, radius = 1.7.dp.toPx(), center = Offset(x, y))
+                            x += 10.dp.toPx()
+                        }
+                        y += 10.dp.toPx()
+                    }
+                }
+                "stripes", "caution" -> {
+                    var x = -size.height
+                    while (x < size.width) {
+                        drawLine(if (tape.pattern == "caution") Color.Black.copy(alpha = 0.16f) else ink,
+                            Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 5.dp.toPx())
+                        x += 13.dp.toPx()
+                    }
+                }
+                "grid" -> {
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(ink, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.dp.toPx())
+                        x += 9.dp.toPx()
+                    }
+                    var y = 0f
+                    while (y < size.height) {
+                        drawLine(ink, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                        y += 9.dp.toPx()
+                    }
+                }
+                "lavender" -> {
+                    var x = 8.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(Color(0xFF9B7BC5).copy(alpha = 0.22f), 3.dp.toPx(), Offset(x, size.height / 2))
+                        x += 17.dp.toPx()
+                    }
+                }
+                "frosted" -> {
+                    drawLine(Color.White.copy(alpha = 0.4f), Offset(0f, 3.dp.toPx()), Offset(size.width, 3.dp.toPx()), 2.dp.toPx())
+                }
+                "kraft" -> {
+                    var x = 4.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(Color(0xFF795B3B).copy(alpha = 0.13f), 1.dp.toPx(), Offset(x, size.height * 0.35f))
+                        drawCircle(Color(0xFF795B3B).copy(alpha = 0.1f), 1.dp.toPx(), Offset(x + 5.dp.toPx(), size.height * 0.72f))
+                        x += 14.dp.toPx()
+                    }
+                }
+            }
+        }
+        Text(tape.text, color = parseColor(tape.textColor, Color(0xFF3D2B1F)), fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1, textAlign = TextAlign.Center,
+            fontFamily = when (tape.fontFamily) {
+                "typewriter", "mono" -> FontFamily.Monospace
+                "marker" -> FontFamily.SansSerif
+                "doodle" -> FontFamily.Cursive
+                else -> FontFamily.Cursive
+            })
     }
 }
 
 @Composable
-fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+fun StickerPropertiesPanel(
+    sticker: PlacedSticker,
+    onChange: (PlacedSticker) -> Unit,
+    onDelete: () -> Unit,
+    onDuplicate: () -> Unit,
+    onCutout: (threshold: Int, borderWidth: Int) -> Unit,
+    onEditEdges: () -> Unit,
+    isProcessing: Boolean,
+    onClose: () -> Unit,
+) {
+    var threshold by remember(sticker.id) { mutableIntStateOf(26) }
     var borderWidth by remember(sticker.id) { mutableIntStateOf((sticker.borderWidth ?: 4).coerceIn(0, 24)) }
     var borderColor by remember(sticker.id) { mutableStateOf(sticker.borderColor ?: "#ffffff") }
     var borderPattern by remember(sticker.id) { mutableStateOf(sticker.borderPattern ?: "solid") }
-    fun apply() = onChange(sticker.copy(borderWidth = borderWidth, borderColor = borderColor, borderPattern = borderPattern))
+    var caption by remember(sticker.id) { mutableStateOf(sticker.caption.orEmpty()) }
+    fun applyBorder() = onChange(sticker.copy(borderWidth = borderWidth, borderColor = borderColor, borderPattern = borderPattern))
     Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
-        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Sticker: ${sticker.alt}", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text("Sticker: ${sticker.alt}", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                TextButton(onClick = onDuplicate) { Text("Duplicate") }
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onClose) { Text("Close") }
+                TextButton(onClick = onClose) { Text("Done") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation - 15f)) }) { Text("↺ Rotate") }
+                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation + 15f)) }) { Text("Rotate ↻") }
+                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale - 0.1f).coerceAtLeast(0.3f))) }) { Text("− Size") }
+                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale + 0.1f).coerceAtMost(3f))) }) { Text("+ Size") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation - 15f)) }) { Text("↺") }
-                OutlinedButton(onClick = { onChange(sticker.copy(rotation = sticker.rotation + 15f)) }) { Text("↻") }
-                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale - 0.1f).coerceAtLeast(0.3f))) }) { Text("−") }
-                OutlinedButton(onClick = { onChange(sticker.copy(scale = (sticker.scale + 0.1f).coerceAtMost(3f))) }) { Text("+") }
+                OutlinedButton(onClick = { onChange(sticker.copy(isFlippedX = !sticker.isFlippedX)) }) {
+                    Text(if (sticker.isFlippedX) "Unflip" else "Flip horizontal")
+                }
+                OutlinedButton(onClick = { onChange(sticker.copy(zIndex = sticker.zIndex + 1)) }) { Text("Bring forward ↑") }
+                OutlinedButton(onClick = { onChange(sticker.copy(zIndex = (sticker.zIndex - 1).coerceAtLeast(0))) }) { Text("Send back ↓") }
             }
-            Text("Border (plain white solid available, selectable px thickness)", style = MaterialTheme.typography.labelLarge)
-            Text("Thickness: ${borderWidth}px")
-            Slider(value = borderWidth.toFloat(), onValueChange = { borderWidth = it.roundToInt(); apply() }, valueRange = 0f..24f, steps = 23)
-            Text("Pattern", style = MaterialTheme.typography.labelMedium)
+
+            Text("Photo filter", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("none", "vintage", "sepia", "monochrome", "warm", "cyan", "polaroid", "highcontrast").forEach { option ->
+                    FilterChip(selected = sticker.filter == option, onClick = { onChange(sticker.copy(filter = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Surface finish", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("none", "glossy", "holographic", "matte", "crinkled", "glitter", "acetate").forEach { option ->
+                    FilterChip(selected = sticker.texture == option, onClick = { onChange(sticker.copy(texture = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Sticker edge", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("diecut", "polaroid", "stamp", "gold", "neon", "none").forEach { option ->
+                    FilterChip(selected = sticker.borderStyle == option, onClick = { onChange(sticker.copy(borderStyle = option)) },
+                        label = { Text(option.replaceFirstChar { it.uppercase() }) })
+                }
+            }
+            Text("Border thickness: ${borderWidth}px", style = MaterialTheme.typography.labelMedium)
+            Slider(value = borderWidth.toFloat(), onValueChange = { borderWidth = it.roundToInt(); applyBorder() },
+                valueRange = 0f..24f, steps = 23)
+            if (!sticker.src.startsWith("emoji:")) {
+                Divider()
+                OutlinedButton(onClick = onEditEdges, modifier = Modifier.fillMaxWidth()) {
+                    Text("✎  Refine sticker edges")
+                }
+                Text("Background removal", style = MaterialTheme.typography.labelLarge)
+                Text("Best for photos with a fairly plain background. Processing happens on this device.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Sensitivity: ${threshold}", style = MaterialTheme.typography.labelSmall)
+                Slider(value = threshold.toFloat(), onValueChange = { threshold = it.roundToInt() },
+                    valueRange = 5f..60f, steps = 54)
+                Button(onClick = { onCutout(threshold, borderWidth) }, enabled = !isProcessing,
+                    modifier = Modifier.fillMaxWidth()) {
+                    if (isProcessing) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Cutting out background…")
+                    } else {
+                        Text("✂  Remove background & make sticker")
+                    }
+                }
+            }
+            Text("Border pattern", style = MaterialTheme.typography.labelMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("solid", "dashed", "dotted", "double").forEach { p ->
-                    FilterChip(selected = borderPattern == p, onClick = { borderPattern = p; apply() }, label = { Text(p) })
+                    FilterChip(selected = borderPattern == p, onClick = { borderPattern = p; applyBorder() }, label = { Text(p) })
                 }
             }
-            Text("Color (white = plain white border)", style = MaterialTheme.typography.labelMedium)
+            Text("Border color", style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf("#ffffff" to "White", "#111827" to "Dark", "#f472b6" to "Pink", "#38bdf8" to "Blue", "#f59e0b" to "Gold").forEach { (hex, name) ->
-                    val c = parseColor(hex)
-                    Box(
-                        Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(c)
-                            .border(if (borderColor.equals(hex, true)) 3.dp else 1.dp, if (borderColor.equals(hex, true)) MaterialTheme.colorScheme.primary else Color.Gray, RoundedCornerShape(8.dp))
-                            .clickable { borderColor = hex; apply() }
-                    )
+                listOf("#ffffff", "#111827", "#f472b6", "#38bdf8", "#f59e0b", "#a78bfa").forEach { hex ->
+                    Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(parseColor(hex))
+                        .border(if (borderColor.equals(hex, true)) 3.dp else 1.dp,
+                            if (borderColor.equals(hex, true)) MaterialTheme.colorScheme.primary else Color.Gray,
+                            RoundedCornerShape(8.dp))
+                        .clickable { borderColor = hex; applyBorder() })
                 }
             }
+            OutlinedTextField(value = caption, onValueChange = { caption = it; onChange(sticker.copy(caption = it)) },
+                label = { Text("Sticker caption (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -265,16 +523,49 @@ fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> 
 fun TapePropertiesPanel(tape: PlacedTape, onChange: (PlacedTape) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
     var text by remember(tape.id) { mutableStateOf(tape.text) }
     Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Washi Tape", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onClose) { Text("Close") }
+                TextButton(onClick = onClose) { Text("Done") }
             }
-            OutlinedTextField(value = text, onValueChange = { text = it; onChange(tape.copy(text = it)) }, label = { Text("Tape text") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = text, onValueChange = { text = it; onChange(tape.copy(text = it)) },
+                label = { Text("Tape text") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("Pattern", style = MaterialTheme.typography.labelMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("grid", "dots", "stripes", "kraft", "caution", "lavender", "frosted", "cyan").forEach { p ->
+                    FilterChip(selected = tape.pattern == p, onClick = { onChange(tape.copy(pattern = p)) }, label = { Text(p) })
+                }
+            }
+            Text("Lettering", style = MaterialTheme.typography.labelMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("handwriting", "marker", "typewriter", "mono", "doodle").forEach { font ->
+                    FilterChip(selected = tape.fontFamily == font, onClick = { onChange(tape.copy(fontFamily = font)) }, label = { Text(font) })
+                }
+            }
+            Text("Ink color", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("#BE185D", "#854D0E", "#065F46", "#334155", "#581C87", "#0E7490", "#292524").forEach { hex ->
+                    Box(Modifier.size(28.dp).clip(CircleShape).background(parseColor(hex))
+                        .border(if (tape.textColor == hex) 3.dp else 1.dp,
+                            if (tape.textColor == hex) MaterialTheme.colorScheme.primary else Color.Gray, CircleShape)
+                        .clickable { onChange(tape.copy(textColor = hex)) })
+                }
+            }
+            Text("Width: ${tape.width.toInt()} dp", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.width.coerceIn(90f, 300f), onValueChange = { onChange(tape.copy(width = it)) },
+                valueRange = 90f..300f)
+            Text("Height: ${tape.height.toInt()} dp", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.height.coerceIn(20f, 70f), onValueChange = { onChange(tape.copy(height = it)) },
+                valueRange = 20f..70f)
+            Text("Opacity: ${(tape.opacity * 100).toInt()}%", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.opacity.coerceIn(0.15f, 1f), onValueChange = { onChange(tape.copy(opacity = it)) },
+                valueRange = 0.15f..1f)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { onChange(tape.copy(rotation = tape.rotation - 10f)) }) { Text("↺ Rotate") }
                 OutlinedButton(onClick = { onChange(tape.copy(rotation = tape.rotation + 10f)) }) { Text("Rotate ↻") }
+                OutlinedButton(onClick = { onChange(tape.copy(zIndex = tape.zIndex + 1)) }) { Text("Forward ↑") }
             }
         }
     }
@@ -282,44 +573,190 @@ fun TapePropertiesPanel(tape: PlacedTape, onChange: (PlacedTape) -> Unit, onDele
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, onAddEmoji: (emoji: String, label: String) -> Unit) {
+fun AddStickerSheet(
+    onDismiss: () -> Unit,
+    onPickImage: () -> Unit,
+    savedPhotos: List<String>,
+    onAddSavedPhoto: (String) -> Unit,
+    onAddEmoji: (emoji: String, label: String) -> Unit,
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var query by remember { mutableStateOf("") }
+    var customStickerText by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("All") }
+    val stock = listOf(
+        Triple("Nature", "🌸", "Cherry blossom"), Triple("Nature", "🌷", "Tulip"),
+        Triple("Nature", "🌻", "Sunflower"), Triple("Nature", "🌿", "Leaf"),
+        Triple("Nature", "🍄", "Mushroom"), Triple("Nature", "🦋", "Butterfly"),
+        Triple("Nature", "🐝", "Bumblebee"), Triple("Nature", "🐞", "Ladybug"),
+        Triple("Nature", "🌙", "Moon"), Triple("Nature", "⭐", "Star"),
+        Triple("Nature", "☁️", "Cloud"), Triple("Nature", "🌈", "Rainbow"),
+        Triple("Cozy", "☕", "Coffee"), Triple("Cozy", "🧸", "Teddy bear"),
+        Triple("Cozy", "🕯️", "Candle"), Triple("Cozy", "🧶", "Yarn"),
+        Triple("Cozy", "🧦", "Cozy socks"), Triple("Cozy", "🛋️", "Sofa"),
+        Triple("Cozy", "📖", "Open book"), Triple("Cozy", "🫖", "Teapot"),
+        Triple("Food", "🍓", "Strawberry"), Triple("Food", "🍒", "Cherries"),
+        Triple("Food", "🍋", "Lemon"), Triple("Food", "🍰", "Cake"),
+        Triple("Food", "🍪", "Cookie"), Triple("Food", "🍯", "Honey"),
+        Triple("Food", "🥐", "Croissant"), Triple("Food", "🍵", "Tea"),
+        Triple("Music", "🎧", "Headphones"), Triple("Music", "📼", "Cassette"),
+        Triple("Music", "🎵", "Music note"), Triple("Music", "🎸", "Guitar"),
+        Triple("Music", "💿", "CD"), Triple("Music", "🎤", "Microphone"),
+        Triple("Travel", "✈️", "Airplane"), Triple("Travel", "🗺️", "Map"),
+        Triple("Travel", "🧳", "Suitcase"), Triple("Travel", "📷", "Camera"),
+        Triple("Travel", "🎟️", "Ticket"), Triple("Travel", "🚂", "Train"),
+        Triple("Travel", "🏕️", "Camping"), Triple("Travel", "🌊", "Ocean"),
+        Triple("Decor", "💖", "Heart"), Triple("Decor", "✨", "Sparkles"),
+        Triple("Decor", "🎀", "Bow"), Triple("Decor", "🪞", "Mirror"),
+        Triple("Decor", "💌", "Love letter"), Triple("Decor", "🧷", "Safety pin"),
+        Triple("Decor", "✂️", "Scissors"), Triple("Decor", "🪡", "Needle"),
+    )
+    val categories = listOf("All", "Nature", "Cozy", "Food", "Music", "Travel", "Decor")
+    val visible = stock.filter { (group, emoji, label) ->
+        (category == "All" || category == group) &&
+            (query.isBlank() || label.contains(query, true) || emoji.contains(query))
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Add Sticker", style = MaterialTheme.typography.titleLarge)
-            Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("Upload image / photo") }
-            Text("Stock stickers", style = MaterialTheme.typography.labelLarge)
-            val stock = listOf("⭐" to "Star", "💖" to "Heart", "🌸" to "Flower", "🎧" to "Music", "📷" to "Camera", "☕" to "Coffee", "✨" to "Sparkle", "🦋" to "Butterfly", "🍓" to "Strawberry", "📼" to "Cassette")
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                stock.forEach { (e, l) ->
-                    Surface(onClick = { onAddEmoji(e, l) }, shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(e, fontSize = 28.sp); Text(l, fontSize = 10.sp) }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Sticker collection", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Choose a decoration or add one of your own photos.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("✂ Sticker design studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Create reusable text decorations right on your phone. No account, API key, internet, or subscription needed.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value = customStickerText, onValueChange = { customStickerText = it.take(28) },
+                        label = { Text("Your sticker wording") }, placeholder = { Text("hello sunshine") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("hello!", "good vibes", "favorite", "remember", "love this", "today").forEach { phrase ->
+                            AssistChip(onClick = { customStickerText = phrase }, label = { Text(phrase) })
+                        }
+                    }
+                    Button(onClick = { onAddEmoji(customStickerText.trim(), "Text sticker") ; customStickerText = "" },
+                        enabled = customStickerText.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                        Text("＋ Add custom text sticker")
                     }
                 }
             }
-            Text("Added stickers get a plain white border (4px solid) by default; select a sticker to change pattern/thickness/px.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-            Spacer(Modifier.height(16.dp))
+            Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("＋  Add photo from device") }
+            if (savedPhotos.isNotEmpty()) {
+                Text("My saved photo stickers", style = MaterialTheme.typography.labelLarge)
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(savedPhotos.size) { index ->
+                        val photo = savedPhotos[index]
+                        Surface(onClick = { onAddSavedPhoto(photo) }, shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
+                            AsyncImage(model = photo, contentDescription = "Saved photo sticker",
+                                modifier = Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)
+                        }
+                    }
+                }
+            }
+            OutlinedTextField(value = query, onValueChange = { query = it },
+                label = { Text("Search stickers") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                categories.forEach { item ->
+                    FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) })
+                }
+            }
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                contentPadding = PaddingValues(bottom = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(visible.size) { index ->
+                    val (_, emoji, label) = visible[index]
+                    Surface(onClick = { onAddEmoji(emoji, label) },
+                        shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(vertical = 10.dp, horizontal = 3.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(emoji, fontSize = 28.sp)
+                            Text(label, fontSize = 9.sp, maxLines = 1)
+                        }
+                    }
+                }
+            }
+            Text("New stickers start with a white die-cut border. Select one on the page to adjust its size, angle, and border.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(10.dp))
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTapeSheet(onDismiss: () -> Unit, onAdd: (pattern: String, text: String) -> Unit) {
+fun AddTapeSheet(
+    onDismiss: () -> Unit,
+    onAdd: (pattern: String, text: String, textColor: String, fontFamily: String) -> Unit
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var text by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("★ FAVORITE MEMORY ★") }
     var pattern by remember { mutableStateOf("grid") }
+    var textColor by remember { mutableStateOf("#BE185D") }
+    var fontFamily by remember { mutableStateOf("marker") }
+    val colors = listOf("#BE185D", "#854D0E", "#065F46", "#334155", "#581C87", "#0E7490", "#292524")
+    val phrases = listOf("★ FAVORITE MEMORY ★", "TOP SECRET", "CHAPTER ONE", "COZY VIBES", "LOVE THIS", "GOOD DAYS")
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Add Washi Tape", style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Tape text (writable)") }, modifier = Modifier.fillMaxWidth())
+        Column(Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Washi tape studio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Choose a pattern, add a phrase, and style your tape.", style = MaterialTheme.typography.bodySmall)
+            Surface(shape = RoundedCornerShape(8.dp), color = when (pattern) {
+                "dots" -> Color(0xFFFBCFE8)
+                "stripes", "caution" -> Color(0xFFFDE68A)
+                "kraft" -> Color(0xFFE7D3B0)
+                "lavender" -> Color(0xFFDDD6FE)
+                "cyan" -> Color(0xFFA5F3FC)
+                "frosted" -> Color(0xFFE8EDF2)
+                else -> Color(0xFFE9D5FF)
+            }) {
+                Box(Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) {
+                    Text(text.ifBlank { "Your tape preview" }, color = parseColor(textColor, Color(0xFFBE185D)),
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                }
+            }
+            OutlinedTextField(value = text, onValueChange = { text = it }, label = { Text("Tape text") },
+                modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Text("Quick phrases", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                phrases.forEach { phrase -> AssistChip(onClick = { text = phrase }, label = { Text(phrase) }) }
+            }
             Text("Pattern", style = MaterialTheme.typography.labelLarge)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("grid", "dots", "stripes", "kraft", "caution", "lavender", "frosted", "cyan").forEach { p ->
                     FilterChip(selected = pattern == p, onClick = { pattern = p }, label = { Text(p) })
                 }
             }
-            Button(onClick = { onAdd(pattern, text) }, modifier = Modifier.fillMaxWidth()) { Text("Add Tape") }
+            Text("Ink color", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                colors.forEach { hex ->
+                    Box(Modifier.size(30.dp).clip(CircleShape).background(parseColor(hex))
+                        .border(if (textColor == hex) 3.dp else 1.dp,
+                            if (textColor == hex) MaterialTheme.colorScheme.primary else Color.Gray, CircleShape)
+                        .clickable { textColor = hex })
+                }
+            }
+            Text("Lettering", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("handwriting", "marker", "typewriter", "mono", "doodle").forEach { font ->
+                    FilterChip(selected = fontFamily == font, onClick = { fontFamily = font }, label = { Text(font) })
+                }
+            }
+            Button(onClick = { onAdd(pattern, text, textColor, fontFamily) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Add washi tape to page")
+            }
             Spacer(Modifier.height(16.dp))
         }
     }

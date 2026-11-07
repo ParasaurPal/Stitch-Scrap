@@ -35,11 +35,40 @@ class ScrapbookRepository(context: Context) {
     }
 
     private suspend fun load() = mutex.withLock {
-        val journals = store.read("journals.json") { DefaultContent.journals() }
-        val entries = store.read("entries.json") { DefaultContent.entries() }
+        val storedJournals = store.read("journals.json") { DefaultContent.journals() }
+        val storedEntries = store.read("entries.json") { DefaultContent.entries() }
+
+        // Upgrade the two placeholder collections from early native builds without
+        // touching user-created journals or any scrapbook pages attached to them.
+        val hadLegacyStarterSet = storedJournals.any {
+            (it.id == "journal-scrapbook" && it.name == "Daily Scrapbook") ||
+                (it.id == "journal-mood" && it.name == "Mood Tracker")
+        }
+        var journals = storedJournals.map { journal ->
+            when {
+                journal.id == "journal-scrapbook" && journal.name == "Daily Scrapbook" ->
+                    journal.copy(name = "Everyday Memories",
+                        description = "Photo collages, keepsakes, little moments & daily stories")
+                journal.id == "journal-mood" && journal.name == "Mood Tracker" ->
+                    journal.copy(id = "journal-midnight", name = "Midnight Rambles",
+                        description = "Late-night thoughts, dreams, playlists & inspiration",
+                        themeColor = "#818cf8", icon = "moon", defaultPaper = "night", coverPattern = "🌙")
+                else -> journal
+            }
+        }
+        if (hadLegacyStarterSet) {
+            val starterCollections = DefaultContent.journals()
+            starterCollections.filter { candidate ->
+                candidate.id in setOf("journal-reading", "journal-wanderlust") &&
+                    journals.none { it.id == candidate.id }
+            }.let { journals = journals + it }
+        }
+        val entries = storedEntries.map { entry ->
+            if (entry.journalId == "journal-mood") entry.copy(journalId = "journal-midnight") else entry
+        }
         _journals.value = journals
         _entries.value = entries
-        // Persist defaults if first run created them
+        // Persist defaults and one-time upgrades so the shelf is stable on next launch.
         store.write("journals.json", journals)
         store.write("entries.json", entries)
         _ready.value = true

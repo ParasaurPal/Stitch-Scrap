@@ -2,12 +2,20 @@ name: Build & Publish Release APK
 
 on:
   push:
+    branches:
+      - native-app-development
     tags:
       - '*'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# Keep only the newest APK build for a branch running. This avoids parallel
+# Gradle dependency downloads exhausting Maven Central rate limits.
+concurrency:
+  group: native-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   Gradle:

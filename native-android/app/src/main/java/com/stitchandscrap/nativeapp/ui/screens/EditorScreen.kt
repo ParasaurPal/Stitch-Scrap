@@ -1,6 +1,15 @@
 package com.stitchandscrap.nativeapp.ui.screens
 
 import android.net.Uri
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Paint as AndroidPaint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,14 +39,21 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.stitchandscrap.nativeapp.data.createDieCutSticker
 import com.stitchandscrap.nativeapp.data.model.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.roundToInt
+
+private data class CanvasLayer(val zIndex: Int, val id: String, val isTape: Boolean)
 
 private fun newId(p: String) = "$p-${UUID.randomUUID().toString().take(8)}"
 private fun parseColor(hex: String, fallback: Color = Color(0xFFF472B6)): Color =
@@ -62,6 +78,151 @@ private fun fontFor(name: String): FontFamily = when (name) {
     else -> FontFamily.Cursive
 }
 
+private fun exportScrapbookPdf(context: Context, uri: Uri, entry: JournalEntry) {
+    val document = PdfDocument()
+    try {
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val paper = when (entry.paperTexture) {
+            "night" -> android.graphics.Color.rgb(31, 34, 48)
+            "kraft", "vintage-torn-collage" -> android.graphics.Color.rgb(245, 230, 200)
+            "blush", "pink-grid-wavy", "strawberry-gingham" -> android.graphics.Color.rgb(255, 242, 247)
+            "lavender-grid-wavy" -> android.graphics.Color.rgb(248, 244, 255)
+            else -> android.graphics.Color.rgb(255, 253, 247)
+        }
+        canvas.drawColor(paper)
+        val dark = entry.paperTexture == "night"
+        val ink = runCatching { android.graphics.Color.parseColor(entry.textColor) }
+            .getOrDefault(if (dark) android.graphics.Color.WHITE else android.graphics.Color.rgb(55, 45, 40))
+        val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { color = ink }
+        val guide = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = if (dark) 0x33FFFFFF else 0x228A7568
+            strokeWidth = 0.7f
+        }
+        when (entry.paperTexture) {
+            "lined", "blush" -> {
+                var y = 42f
+                while (y < 842f) { canvas.drawLine(30f, y, 565f, y, guide); y += 27f }
+            }
+            "grid", "math-grid-stars", "lavender-grid-wavy" -> {
+                var x = 30f
+                while (x < 595f) { canvas.drawLine(x, 0f, x, 842f, guide); x += 24f }
+                var y = 24f
+                while (y < 842f) { canvas.drawLine(0f, y, 595f, y, guide); y += 24f }
+            }
+            "dot" -> {
+                var y = 12f
+                while (y < 842f) {
+                    var x = 12f
+                    while (x < 595f) { canvas.drawCircle(x, y, 1.1f, guide); x += 24f }
+                    y += 24f
+                }
+            }
+        }
+
+        val titlePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink; textSize = 27f; typeface = Typeface.create("casual", Typeface.BOLD)
+        }
+        val datePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink; alpha = 180; textSize = 11f; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+        }
+        canvas.drawText(entry.date.take(70), 42f, 54f, datePaint)
+        val title = entry.title.ifBlank { "Untitled scrapbook page" }
+        val titleLayout = StaticLayout.Builder.obtain(title, 0, title.length,
+            TextPaint(titlePaint), 510).setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setIncludePad(false).build()
+        canvas.save()
+        canvas.translate(42f, 72f)
+        titleLayout.draw(canvas)
+        canvas.restore()
+
+        val bodyStyle = (if (entry.isBold) Typeface.BOLD else Typeface.NORMAL) or
+            (if (entry.isItalic) Typeface.ITALIC else Typeface.NORMAL)
+        val bodyPaint = TextPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = ink
+            textSize = entry.fontSize.coerceIn(12, 36).toFloat()
+            typeface = when (entry.fontFamily) {
+                "typewriter" -> Typeface.create(Typeface.MONOSPACE, bodyStyle)
+                "marker" -> Typeface.create("sans-serif-condensed", bodyStyle)
+                "sans" -> Typeface.create(Typeface.SANS_SERIF, bodyStyle)
+                else -> Typeface.create("casual", bodyStyle)
+            }
+            if (entry.isUnderlined) flags = flags or AndroidPaint.UNDERLINE_TEXT_FLAG
+        }
+        val body = entry.content.replace(Regex("<[^>]*>"), "").ifBlank { " " }
+        val bodyLayout = StaticLayout.Builder.obtain(body, 0, body.length, bodyPaint, 510)
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL).setLineSpacing(7f, 1.12f)
+            .setIncludePad(false).build()
+        canvas.save()
+        canvas.translate(42f, 160f)
+        bodyLayout.draw(canvas)
+        canvas.restore()
+
+        entry.tapes.sortedBy { it.zIndex }.forEach { tape ->
+            val cx = tape.x / 100f * 595f
+            val cy = tape.y / 100f * 842f
+            val rect = RectF(cx - tape.width * 0.65f, cy - tape.height * 0.65f,
+                cx + tape.width * 0.65f, cy + tape.height * 0.65f)
+            val tapePaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                color = when (tape.pattern) {
+                    "dots" -> android.graphics.Color.rgb(251, 207, 232)
+                    "stripes", "caution" -> android.graphics.Color.rgb(253, 230, 138)
+                    "kraft" -> android.graphics.Color.rgb(231, 211, 176)
+                    "lavender" -> android.graphics.Color.rgb(221, 214, 254)
+                    "cyan" -> android.graphics.Color.rgb(165, 243, 252)
+                    "frosted" -> android.graphics.Color.rgb(235, 240, 245)
+                    else -> android.graphics.Color.rgb(233, 213, 255)
+                }
+                alpha = (tape.opacity.coerceIn(0f, 1f) * 255).toInt()
+            }
+            canvas.save()
+            canvas.rotate(tape.rotation, cx, cy)
+            canvas.drawRoundRect(rect, 5f, 5f, tapePaint)
+            val tapeTextPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                color = runCatching { android.graphics.Color.parseColor(tape.textColor) }.getOrDefault(android.graphics.Color.DKGRAY)
+                textSize = 13f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                textAlign = AndroidPaint.Align.CENTER
+            }
+            canvas.drawText(tape.text.take(36), cx, cy + 4f, tapeTextPaint)
+            canvas.restore()
+        }
+
+        entry.stickers.sortedBy { it.zIndex }.forEach { sticker ->
+            val cx = sticker.x / 100f * 595f
+            val cy = sticker.y / 100f * 842f
+            val w = sticker.width * sticker.scale * 1.15f
+            val h = sticker.height * sticker.scale * 1.15f
+            canvas.save()
+            canvas.rotate(sticker.rotation, cx, cy)
+            if (sticker.src.startsWith("emoji:")) {
+                val emojiPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                    textSize = minOf(w, h).coerceAtLeast(24f) * 0.8f
+                    textAlign = AndroidPaint.Align.CENTER
+                }
+                canvas.drawText(sticker.src.removePrefix("emoji:"), cx, cy + emojiPaint.textSize * 0.32f, emojiPaint)
+            } else {
+                runCatching {
+                    val stickerUri = Uri.parse(sticker.src)
+                    if (stickerUri.scheme == "file") stickerUri.path?.let { BitmapFactory.decodeFile(it) }
+                    else context.contentResolver.openInputStream(stickerUri)?.use { BitmapFactory.decodeStream(it) }
+                }.getOrNull()?.let { bitmap ->
+                    val dst = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
+                    canvas.drawBitmap(bitmap, null, dst, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG))
+                    bitmap.recycle()
+                }
+            }
+            canvas.restore()
+        }
+        document.finishPage(page)
+        context.contentResolver.openOutputStream(uri)?.use { output -> document.writeTo(output) }
+            ?: throw IllegalStateException("Could not open the selected PDF destination.")
+    } finally {
+        document.close()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
@@ -74,11 +235,31 @@ fun EditorScreen(
     var draft by remember(entry.id) { mutableStateOf(entry) }
     var selectedStickerId by remember { mutableStateOf<String?>(null) }
     var selectedTapeId by remember { mutableStateOf<String?>(null) }
+    var processingStickerId by remember { mutableStateOf<String?>(null) }
+    var editingStickerId by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     var showStickerSheet by remember { mutableStateOf(false) }
     var showTapeSheet by remember { mutableStateOf(false) }
     var showMoodSheet by remember { mutableStateOf(false) }
     var showPageDesign by remember { mutableStateOf(false) }
+    var showMoreActions by remember { mutableStateOf(false) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val context = LocalContext.current
+    val stickerPreferences = remember { context.getSharedPreferences("stitch_scrap_sticker_library", Context.MODE_PRIVATE) }
+    var savedStickerPhotos by remember {
+        mutableStateOf(stickerPreferences.getStringSet("saved_photos", emptySet())?.toList().orEmpty())
+    }
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) {
+            runCatching { exportScrapbookPdf(context, uri, draft) }
+                .onSuccess { android.widget.Toast.makeText(context, "Scrapbook PDF saved", android.widget.Toast.LENGTH_LONG).show() }
+                .onFailure {
+                    android.util.Log.e("StitchScrap", "PDF export failed", it)
+                    android.widget.Toast.makeText(context, "Could not export PDF: ${it.message ?: "unknown error"}",
+                        android.widget.Toast.LENGTH_LONG).show()
+                }
+        }
+    }
     val textColors = listOf("#292524", "#7F1D1D", "#9D174D", "#6B21A8", "#1D4ED8", "#166534", "#FFFFFF")
     val papers = listOf(
         "lined" to "Notebook", "grid" to "Math grid", "dot" to "Dot grid",
@@ -98,6 +279,11 @@ fun EditorScreen(
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            savedStickerPhotos = (savedStickerPhotos + it.toString()).distinct()
+            stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
             val highest = (draft.stickers.map { s -> s.zIndex } + draft.tapes.map { t -> t.zIndex }).maxOrNull() ?: 10
             val sticker = PlacedSticker(
                 id = newId("stk"), src = it.toString(), alt = "Photo sticker",
@@ -124,12 +310,47 @@ fun EditorScreen(
                 },
                 navigationIcon = { IconButton(onClick = { save(); onBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
-                    IconButton(onClick = { showPageDesign = true }) { Text("Aa", fontWeight = FontWeight.Bold) }
-                    IconButton(onClick = { showMoodSheet = true }) { Icon(Icons.Default.Mood, "Mood and widgets") }
-                    IconButton(onClick = { showStickerSheet = true }) { Icon(Icons.Default.AddPhotoAlternate, "Add photo or sticker") }
-                    IconButton(onClick = { showTapeSheet = true }) { Icon(Icons.Default.StickyNote2, "Add washi tape") }
                     IconButton(onClick = { save() }) { Icon(Icons.Default.Save, "Save page") }
-                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete page", tint = MaterialTheme.colorScheme.error) }
+                    Box {
+                        IconButton(onClick = { showMoreActions = true }) {
+                            Text("⋮", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                        DropdownMenu(
+                            expanded = showMoreActions,
+                            onDismissRequest = { showMoreActions = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Page typography") },
+                                onClick = { showMoreActions = false; showPageDesign = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Mood & blog widgets") },
+                                onClick = { showMoreActions = false; showMoodSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add photo or sticker") },
+                                onClick = { showMoreActions = false; showStickerSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add washi tape") },
+                                onClick = { showMoreActions = false; showTapeSheet = true }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export PDF") },
+                                onClick = {
+                                    showMoreActions = false
+                                    val safeName = draft.title.ifBlank { "scrapbook-page" }
+                                        .replace(Regex("[^A-Za-z0-9 _-]"), "").trim()
+                                        .ifBlank { "scrapbook-page" }
+                                    pdfLauncher.launch("$safeName.pdf")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete page", color = MaterialTheme.colorScheme.error) },
+                                onClick = { showMoreActions = false; onDelete() }
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF292524), titleContentColor = Color.White,
                     navigationIconContentColor = Color.White, actionIconContentColor = Color.White)
@@ -189,6 +410,20 @@ fun EditorScreen(
                     Spacer(Modifier.height(10.dp))
                     HorizontalDivider(color = parseColor(draft.textColor).copy(alpha = 0.18f))
                     Spacer(Modifier.height(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilterChip(selected = draft.isBold, onClick = { draft = draft.copy(isBold = !draft.isBold) },
+                            label = { Text("B", fontWeight = FontWeight.Bold) })
+                        FilterChip(selected = draft.isItalic, onClick = { draft = draft.copy(isItalic = !draft.isItalic) },
+                            label = { Text("I", fontStyle = FontStyle.Italic) })
+                        FilterChip(selected = draft.isUnderlined, onClick = { draft = draft.copy(isUnderlined = !draft.isUnderlined) },
+                            label = { Text("U", textDecoration = TextDecoration.Underline) })
+                        Text("BODY STYLE", style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF8B756A), fontWeight = FontWeight.Bold)
+                    }
                     OutlinedTextField(
                         value = draft.content,
                         onValueChange = { draft = draft.copy(content = it) },
@@ -196,6 +431,9 @@ fun EditorScreen(
                         modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 320.dp),
                         textStyle = TextStyle(fontFamily = fontFor(draft.fontFamily),
                             fontSize = draft.fontSize.coerceIn(12, 36).sp,
+                            fontWeight = if (draft.isBold) FontWeight.Bold else FontWeight.Normal,
+                            fontStyle = if (draft.isItalic) FontStyle.Italic else FontStyle.Normal,
+                            textDecoration = if (draft.isUnderlined) TextDecoration.Underline else TextDecoration.None,
                             color = parseColor(draft.textColor), lineHeight = (draft.fontSize.coerceIn(12, 36) * 1.65f).sp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedContainerColor = Color.White.copy(alpha = 0.12f),
@@ -206,27 +444,32 @@ fun EditorScreen(
                     Spacer(Modifier.height(280.dp))
                 }
 
-                draft.tapes.sortedBy { it.zIndex }.forEach { tape ->
-                    TapeItem(
-                        tape = tape, selected = selectedTapeId == tape.id, canvasSize = canvasSize,
-                        onSelect = { selectedTapeId = tape.id; selectedStickerId = null },
-                        onMove = { dx, dy ->
-                            draft = draft.copy(tapes = draft.tapes.map {
-                                if (it.id == tape.id) it.copy(x = (it.x + dx).coerceIn(2f, 98f), y = (it.y + dy).coerceIn(2f, 98f)) else it
-                            })
-                        }
-                    )
-                }
-                draft.stickers.sortedBy { it.zIndex }.forEach { sticker ->
-                    StickerItem(
-                        sticker = sticker, selected = selectedStickerId == sticker.id, canvasSize = canvasSize,
-                        onSelect = { selectedStickerId = sticker.id; selectedTapeId = null },
-                        onMove = { dx, dy ->
-                            draft = draft.copy(stickers = draft.stickers.map {
-                                if (it.id == sticker.id) it.copy(x = (it.x + dx).coerceIn(0f, 100f), y = (it.y + dy).coerceIn(0f, 100f)) else it
-                            })
-                        }
-                    )
+                val layers = (draft.tapes.map { CanvasLayer(it.zIndex, it.id, true) } +
+                    draft.stickers.map { CanvasLayer(it.zIndex, it.id, false) }).sortedBy { it.zIndex }
+                layers.forEach { layer ->
+                    if (layer.isTape) {
+                        val tape = draft.tapes.find { it.id == layer.id }
+                        if (tape != null) TapeItem(
+                            tape = tape, selected = selectedTapeId == tape.id, canvasSize = canvasSize,
+                            onSelect = { selectedTapeId = tape.id; selectedStickerId = null },
+                            onMove = { dx, dy ->
+                                draft = draft.copy(tapes = draft.tapes.map {
+                                    if (it.id == tape.id) it.copy(x = (it.x + dx).coerceIn(2f, 98f), y = (it.y + dy).coerceIn(2f, 98f)) else it
+                                })
+                            }
+                        )
+                    } else {
+                        val sticker = draft.stickers.find { it.id == layer.id }
+                        if (sticker != null) StickerItem(
+                            sticker = sticker, selected = selectedStickerId == sticker.id, canvasSize = canvasSize,
+                            onSelect = { selectedStickerId = sticker.id; selectedTapeId = null },
+                            onMove = { dx, dy ->
+                                draft = draft.copy(stickers = draft.stickers.map {
+                                    if (it.id == sticker.id) it.copy(x = (it.x + dx).coerceIn(0f, 100f), y = (it.y + dy).coerceIn(0f, 100f)) else it
+                                })
+                            }
+                        )
+                    }
                 }
             }
 
@@ -236,7 +479,49 @@ fun EditorScreen(
                     sticker = selectedSticker,
                     onChange = { updated -> draft = draft.copy(stickers = draft.stickers.map { if (it.id == updated.id) updated else it }) },
                     onDelete = { draft = draft.copy(stickers = draft.stickers.filterNot { it.id == selectedSticker.id }); selectedStickerId = null },
+                    onDuplicate = {
+                        val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
+                        val copy = selectedSticker.copy(id = newId("stk"),
+                            x = (selectedSticker.x + 5f).coerceAtMost(95f),
+                            y = (selectedSticker.y + 5f).coerceAtMost(95f), zIndex = highest + 1)
+                        draft = draft.copy(stickers = draft.stickers + copy)
+                        selectedStickerId = copy.id
+                    },
+                    onCutout = { threshold, borderWidth ->
+                        coroutineScope.launch {
+                            processingStickerId = selectedSticker.id
+                            val processed = createDieCutSticker(context, selectedSticker.src, threshold, borderWidth)
+                            if (processed != null) {
+                                draft = draft.copy(stickers = draft.stickers.map {
+                                    if (it.id == selectedSticker.id) it.copy(src = processed, borderStyle = "none", borderWidth = 0) else it
+                                })
+                                android.widget.Toast.makeText(context, "Background removed — sticker saved", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, "Could not cut out this image. Try a photo with a simpler background.",
+                                    android.widget.Toast.LENGTH_LONG).show()
+                            }
+                            processingStickerId = null
+                        }
+                    },
+                    onEditEdges = { editingStickerId = selectedSticker.id },
+                    isProcessing = processingStickerId == selectedSticker.id,
                     onClose = { selectedStickerId = null }
+                )
+            }
+            val edgeSticker = draft.stickers.find { it.id == editingStickerId }
+            if (edgeSticker != null) {
+                ManualStickerEdgeEditor(
+                    source = edgeSticker.src,
+                    onDismiss = { editingStickerId = null },
+                    onSave = { editedSource ->
+                        draft = draft.copy(stickers = draft.stickers.map {
+                            if (it.id == edgeSticker.id) it.copy(src = editedSource) else it
+                        })
+                        savedStickerPhotos = (savedStickerPhotos + editedSource).distinct()
+                        stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
+                        editingStickerId = null
+                        android.widget.Toast.makeText(context, "Sticker edges saved", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
             val selectedTape = draft.tapes.find { it.id == selectedTapeId }
@@ -284,6 +569,20 @@ fun EditorScreen(
         AddStickerSheet(
             onDismiss = { showStickerSheet = false },
             onPickImage = { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); showStickerSheet = false },
+            savedPhotos = savedStickerPhotos,
+            onAddSavedPhoto = { src ->
+                val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
+                val sticker = PlacedSticker(
+                    id = newId("stk"), src = src, alt = "Saved photo sticker",
+                    x = 40f, y = 35f, width = 140f, height = 140f, zIndex = highest + 1,
+                    borderStyle = "diecut", borderWidth = 4, borderColor = "#ffffff",
+                    borderPattern = "solid", texture = "glossy"
+                )
+                draft = draft.copy(stickers = draft.stickers + sticker)
+                selectedStickerId = sticker.id
+                selectedTapeId = null
+                showStickerSheet = false
+            },
             onAddEmoji = { emoji, label ->
                 val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
                 val sticker = PlacedSticker(
@@ -301,10 +600,10 @@ fun EditorScreen(
     if (showTapeSheet) {
         AddTapeSheet(
             onDismiss = { showTapeSheet = false },
-            onAdd = { pattern, text ->
+            onAdd = { pattern, text, textColor, fontFamily ->
                 val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
-                val tape = PlacedTape(id = newId("tape"), x = 40f, y = 20f, width = 170f, height = 34f,
-                    pattern = pattern, text = text, zIndex = highest + 1)
+                val tape = PlacedTape(id = newId("tape"), x = 40f, y = 20f, width = 190f, height = 38f,
+                    pattern = pattern, text = text, textColor = textColor, fontFamily = fontFamily, zIndex = highest + 1)
                 draft = draft.copy(tapes = draft.tapes + tape)
                 selectedTapeId = tape.id
                 selectedStickerId = null

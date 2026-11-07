@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -109,10 +111,33 @@ fun StickerItem(
     val density = LocalDensity.current
     val w = with(density) { (sticker.width * sticker.scale).dp }
     val h = with(density) { (sticker.height * sticker.scale).dp }
-    val borderW = (sticker.borderWidth ?: 0).coerceIn(0, 48)
-    val borderColor = parseColor(sticker.borderColor, Color.White)
+    val borderW = if (sticker.borderStyle == "none") 0 else (sticker.borderWidth ?: 0).coerceIn(0, 48)
+    val borderColor = when (sticker.borderStyle) {
+        "gold" -> Color(0xFFD6A83E)
+        "neon" -> Color(0xFFFF4FCB)
+        else -> parseColor(sticker.borderColor, Color.White)
+    }
     val pattern = sticker.borderPattern ?: "solid"
     val pe = pathEffectFor(pattern)
+    val filter = when (sticker.filter) {
+        "monochrome" -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+        "sepia", "vintage" -> ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+            0.393f, 0.769f, 0.189f, 0f, 0f,
+            0.349f, 0.686f, 0.168f, 0f, 0f,
+            0.272f, 0.534f, 0.131f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f
+        )))
+        "warm" -> ColorFilter.tint(Color(0x33F59E0B))
+        "cyan" -> ColorFilter.tint(Color(0x3345D9E8))
+        "polaroid" -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.72f) })
+        "highcontrast" -> ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+            1.25f, 0f, 0f, 0f, -24f,
+            0f, 1.25f, 0f, 0f, -24f,
+            0f, 0f, 1.25f, 0f, -24f,
+            0f, 0f, 0f, 1f, 0f
+        )))
+        else -> null
+    }
 
     Box(
         modifier = Modifier
@@ -141,9 +166,9 @@ fun StickerItem(
     ) {
         Box(
             Modifier.fillMaxSize().padding((borderW / 2).dp).let { m ->
-                if (borderW > 0 && pe == null && pattern in listOf("solid", "double", "groove", "ridge", "inset", "outset")) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
+                if (borderW > 0 && pe == null) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
                 else m
-            }.clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.85f)),
+            }.clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.88f)),
             contentAlignment = Alignment.Center
         ) {
             if (sticker.src.startsWith("emoji:")) {
@@ -152,9 +177,26 @@ fun StickerItem(
                 AsyncImage(
                     model = sticker.src,
                     contentDescription = sticker.alt,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = if (sticker.isFlippedX) -1f else 1f },
                     contentScale = ContentScale.Fit,
+                    colorFilter = filter,
                 )
+            }
+            when (sticker.texture) {
+                "glossy" -> Box(Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.28f), Color.Transparent, Color.Transparent))))
+                "holographic" -> Box(Modifier.fillMaxSize().background(
+                    Brush.linearGradient(listOf(Color(0x44FF80AB), Color(0x4438BDF8), Color(0x44C084FC), Color(0x44FDE68A)))))
+                "glitter" -> Box(Modifier.fillMaxSize().background(
+                    Brush.radialGradient(listOf(Color.White.copy(alpha = 0.25f), Color.Transparent))))
+                "acetate" -> Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.18f)))
+                else -> Unit
+            }
+            if (!sticker.caption.isNullOrBlank()) {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.48f)).padding(3.dp)) {
+                    Text(sticker.caption, color = Color.White, fontSize = 9.sp, maxLines = 2,
+                        textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                }
             }
         }
         if (borderW > 0 && pe != null) {

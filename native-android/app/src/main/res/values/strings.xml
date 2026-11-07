@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Stitch &amp; Scrap</string>
     <string name="native_foundation_note">Native Android rewrite foundation (Jetpack Compose)</string>
+    <string name="default_web_client_id">710441912483-rcrm58b15b7dvd6ikv4rrpnk9a42h0b1.apps.googleusercontent.com</string>
 </resources>

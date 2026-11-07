@@ -30,7 +30,7 @@ class AppViewModel(
     private val _working = MutableStateFlow(false)
     val working: StateFlow<Boolean> = _working.asStateFlow()
 
-    fun googleSignInIntent(context: Context) = account.googleSignInIntent()
+    fun googleSignInIntent() = account.googleSignInIntent()
 
     fun completeGoogleSignIn(data: Intent?) {
         viewModelScope.launch {

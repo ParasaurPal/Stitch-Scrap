@@ -133,9 +133,9 @@ fun StickerItem(
         "cyan" -> ColorFilter.tint(Color(0x3345D9E8))
         "polaroid" -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.72f) })
         "highcontrast" -> ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
-            1.25f, 0f, 0f, 0f, -24f,
-            0f, 1.25f, 0f, 0f, -24f,
-            0f, 0f, 1.25f, 0f, -24f,
+            1.25f, 0f, 0f, 0f, -0.1f,
+            0f, 1.25f, 0f, 0f, -0.1f,
+            0f, 0f, 1.25f, 0f, -0.1f,
             0f, 0f, 0f, 1f, 0f
         )))
         else -> null

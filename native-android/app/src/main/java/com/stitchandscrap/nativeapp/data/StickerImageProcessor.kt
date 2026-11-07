@@ -29,6 +29,7 @@ suspend fun createDieCutSticker(
     source: String,
     threshold: Int = 26,
     borderWidth: Int = 8,
+    borderColor: String = "#ffffff",
 ): String? = withContext(Dispatchers.IO) {
     if (source.startsWith("emoji:")) return@withContext null
 
@@ -126,8 +127,9 @@ suspend fun createDieCutSticker(
         val padding = (radius * 2 + 10).toInt()
         output = Bitmap.createBitmap(width + padding * 2, height + padding * 2, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output!!)
+        val outlineColor = runCatching { Color.parseColor(borderColor) }.getOrDefault(Color.WHITE)
         val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-            colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+            colorFilter = PorterDuffColorFilter(outlineColor, PorterDuff.Mode.SRC_IN)
         }
         if (radius > 0f) {
             val steps = 32

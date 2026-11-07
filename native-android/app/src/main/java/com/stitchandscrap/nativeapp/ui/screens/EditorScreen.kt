@@ -490,7 +490,10 @@ fun EditorScreen(
                     onCutout = { threshold, borderWidth ->
                         coroutineScope.launch {
                             processingStickerId = selectedSticker.id
-                            val processed = createDieCutSticker(context, selectedSticker.src, threshold, borderWidth)
+                            val processed = createDieCutSticker(
+                                context, selectedSticker.src, threshold, borderWidth,
+                                selectedSticker.borderColor ?: "#ffffff"
+                            )
                             if (processed != null) {
                                 draft = draft.copy(stickers = draft.stickers.map {
                                     if (it.id == selectedSticker.id) it.copy(src = processed, borderStyle = "none", borderWidth = 0) else it

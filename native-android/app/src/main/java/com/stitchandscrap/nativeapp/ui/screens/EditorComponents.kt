@@ -504,8 +504,13 @@ fun StickerPropertiesPanel(
                 }
             }
             Text("Border color", style = MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf("#ffffff", "#111827", "#f472b6", "#38bdf8", "#f59e0b", "#a78bfa").forEach { hex ->
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf(
+                    "#ffffff", "#111827", "#f472b6", "#38bdf8", "#f59e0b", "#a78bfa",
+                    "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6",
+                    "#6366f1", "#8b5cf6", "#d946ef", "#a16207"
+                ).forEach { hex ->
                     Box(Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)).background(parseColor(hex))
                         .border(if (borderColor.equals(hex, true)) 3.dp else 1.dp,
                             if (borderColor.equals(hex, true)) MaterialTheme.colorScheme.primary else Color.Gray,
@@ -513,6 +518,22 @@ fun StickerPropertiesPanel(
                         .clickable { borderColor = hex; applyBorder() })
                 }
             }
+            OutlinedTextField(
+                value = borderColor,
+                onValueChange = { value ->
+                    val normalized = if (value.startsWith("#")) value else "#$value"
+                    if (normalized.matches(Regex("#[0-9A-Fa-f]{6}"))) {
+                        borderColor = normalized
+                        applyBorder()
+                    } else if (value.isEmpty() || value == "#") {
+                        borderColor = value
+                    }
+                },
+                label = { Text("Custom color (HEX)") },
+                placeholder = { Text("#FF66AA") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
             OutlinedTextField(value = caption, onValueChange = { caption = it; onChange(sticker.copy(caption = it)) },
                 label = { Text("Sticker caption (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }

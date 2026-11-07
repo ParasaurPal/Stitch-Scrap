@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.stitchandscrap.nativeapp.data.createDieCutSticker
-import com.stitchandscrap.nativeapp.data.StickerAiClient
 import com.stitchandscrap.nativeapp.data.model.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -472,27 +471,6 @@ fun EditorScreen(
                         }
                     },
                     isProcessing = processingStickerId == selectedSticker.id,
-                    onAiCutout = {
-                        coroutineScope.launch {
-                            processingAiStickerId = selectedSticker.id
-                            aiStickerError = null
-                            runCatching { StickerAiClient.removeBackground(context, aiServerUrl, selectedSticker.src) }
-                                .onSuccess { processed ->
-                                    draft = draft.copy(stickers = draft.stickers.map {
-                                        if (it.id == selectedSticker.id) it.copy(src = processed, borderStyle = "none", borderWidth = 0) else it
-                                    })
-                                    savedStickerPhotos = (savedStickerPhotos + processed).distinct()
-                                    stickerPreferences.edit().putStringSet("saved_photos", savedStickerPhotos.toSet()).apply()
-                                    android.widget.Toast.makeText(context, "Gemini cutout saved to your sticker collection", android.widget.Toast.LENGTH_LONG).show()
-                                }
-                                .onFailure {
-                                    android.widget.Toast.makeText(context, it.message ?: "Gemini cutout failed", android.widget.Toast.LENGTH_LONG).show()
-                                }
-                            processingAiStickerId = null
-                        }
-                    },
-                    isAiProcessing = processingAiStickerId == selectedSticker.id,
-                    aiConfigured = aiServerUrl.startsWith("http"),
                     onClose = { selectedStickerId = null }
                 )
             }

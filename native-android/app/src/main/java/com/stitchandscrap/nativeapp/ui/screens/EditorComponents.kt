@@ -325,7 +325,7 @@ fun TapeItem(
 }
 
 @Composable
-fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
+fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit, onClose: () -> Unit) {
     var borderWidth by remember(sticker.id) { mutableIntStateOf((sticker.borderWidth ?: 4).coerceIn(0, 24)) }
     var borderColor by remember(sticker.id) { mutableStateOf(sticker.borderColor ?: "#ffffff") }
     var borderPattern by remember(sticker.id) { mutableStateOf(sticker.borderPattern ?: "solid") }
@@ -336,6 +336,7 @@ fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> 
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Sticker: ${sticker.alt}", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
+                TextButton(onClick = onDuplicate) { Text("Duplicate") }
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
                 TextButton(onClick = onClose) { Text("Done") }
             }

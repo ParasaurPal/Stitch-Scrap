@@ -1,5 +1,9 @@
 package com.stitchandscrap.nativeapp.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -18,12 +22,26 @@ fun AppRoot(vm: AppViewModel) {
     val journals by vm.journals.collectAsState()
     val entries by vm.entries.collectAsState()
     val ready by vm.ready.collectAsState()
+    val userEmail by vm.userEmail.collectAsState()
+    val syncMessage by vm.syncMessage.collectAsState()
+    val working by vm.working.collectAsState()
+    val context = LocalContext.current
+    val signInLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) vm.completeGoogleSignIn(result.data)
+    }
 
     NavHost(navController = nav, startDestination = "journals") {
         composable("journals") {
             JournalsScreen(
                 journals = journals,
                 ready = ready,
+                userEmail = userEmail,
+                syncMessage = syncMessage,
+                working = working,
+                onSignIn = { signInLauncher.launch(vm.googleSignInIntent()) },
+                onSignOut = { vm.signOut() },
+                onBackup = { vm.backupToCloud() },
+                onRestore = { vm.restoreFromCloud() },
                 onOpen = { id -> nav.navigate("entries/$id") },
                 onCreate = { name, desc, color -> vm.createJournal(name, desc, color) },
                 onDelete = { vm.deleteJournal(it) },

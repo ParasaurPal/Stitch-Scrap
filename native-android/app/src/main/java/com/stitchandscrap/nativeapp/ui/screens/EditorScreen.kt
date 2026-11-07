@@ -204,7 +204,9 @@ private fun exportScrapbookPdf(context: Context, uri: Uri, entry: JournalEntry) 
                 canvas.drawText(sticker.src.removePrefix("emoji:"), cx, cy + emojiPaint.textSize * 0.32f, emojiPaint)
             } else {
                 runCatching {
-                    context.contentResolver.openInputStream(Uri.parse(sticker.src))?.use { BitmapFactory.decodeStream(it) }
+                    val stickerUri = Uri.parse(sticker.src)
+                    if (stickerUri.scheme == "file") stickerUri.path?.let { BitmapFactory.decodeFile(it) }
+                    else context.contentResolver.openInputStream(stickerUri)?.use { BitmapFactory.decodeStream(it) }
                 }.getOrNull()?.let { bitmap ->
                     val dst = RectF(cx - w / 2f, cy - h / 2f, cx + w / 2f, cy + h / 2f)
                     canvas.drawBitmap(bitmap, null, dst, AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG))

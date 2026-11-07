@@ -34,7 +34,7 @@ suspend fun createDieCutSticker(
     val original = runCatching {
         val uri = Uri.parse(source)
         if (uri.scheme == "file") {
-            uri.path?.let(BitmapFactory::decodeFile)
+            uri.path?.let { BitmapFactory.decodeFile(it) }
         } else {
             context.contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream)
         }
@@ -51,9 +51,9 @@ suspend fun createDieCutSticker(
         val pixels = IntArray(width * height)
         scaled.getPixels(pixels, 0, width, 0, 0, width, height)
         val corners = intArrayOf(pixels[0], pixels[width - 1], pixels[(height - 1) * width], pixels[height * width - 1])
-        val bgR = corners.map(Color::red).average()
-        val bgG = corners.map(Color::green).average()
-        val bgB = corners.map(Color::blue).average()
+        val bgR = corners.map { Color.red(it) }.average()
+        val bgG = corners.map { Color.green(it) }.average()
+        val bgB = corners.map { Color.blue(it) }.average()
         val distanceLimit = (threshold.coerceIn(0, 100) / 100.0) * sqrt(3.0 * 255.0 * 255.0)
 
         val cutoutPixels = IntArray(pixels.size)

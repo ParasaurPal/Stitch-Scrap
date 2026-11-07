@@ -2,6 +2,8 @@ name: Build & Publish Release APK
 
 on:
   push:
+    branches:
+      - native-app-development
     tags:
       - '*'
   workflow_dispatch:

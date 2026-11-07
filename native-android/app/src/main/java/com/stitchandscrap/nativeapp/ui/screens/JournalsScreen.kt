@@ -24,6 +24,13 @@ import com.stitchandscrap.nativeapp.data.model.Journal
 fun JournalsScreen(
     journals: List<Journal>,
     ready: Boolean,
+    userEmail: String?,
+    syncMessage: String,
+    working: Boolean,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
     onOpen: (String) -> Unit,
     onCreate: (name: String, description: String, themeColor: String) -> Unit,
     onDelete: (String) -> Unit,
@@ -32,6 +39,7 @@ fun JournalsScreen(
     var name by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("#f472b6") }
+    var confirmRestore by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -57,6 +65,37 @@ fun JournalsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            if (userEmail == null) "Cloud backup" else "Signed in as " + userEmail,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(syncMessage, style = MaterialTheme.typography.bodySmall)
+                        if (userEmail == null) {
+                            Button(onClick = onSignIn, enabled = !working, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (working) "Please wait…" else "Sign in with Google")
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = onBackup, enabled = !working, modifier = Modifier.weight(1f)) {
+                                    Text("Back up")
+                                }
+                                OutlinedButton(onClick = { confirmRestore = true }, enabled = !working, modifier = Modifier.weight(1f)) {
+                                    Text("Restore")
+                                }
+                            }
+                            TextButton(onClick = onSignOut, enabled = !working) { Text("Sign out") }
+                        }
+                    }
+                }
+            }
             if (journals.isEmpty()) {
                 item { Text("No journals yet. Tap + to create one.", style = MaterialTheme.typography.bodyLarge) }
             }
@@ -87,6 +126,20 @@ fun JournalsScreen(
                 }
             }
         }
+    }
+
+    if (confirmRestore) {
+        AlertDialog(
+            onDismissRequest = { confirmRestore = false },
+            title = { Text("Restore cloud backup?") },
+            text = { Text("Restoring replaces the journals and entries currently stored on this device. Back up first if you want to keep this device's latest changes.") },
+            confirmButton = {
+                TextButton(onClick = { confirmRestore = false; onRestore() }) { Text("Restore") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRestore = false }) { Text("Cancel") }
+            },
+        )
     }
 
     if (showCreate) {

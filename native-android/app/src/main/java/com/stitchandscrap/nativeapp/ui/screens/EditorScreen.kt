@@ -520,10 +520,10 @@ fun EditorScreen(
     if (showTapeSheet) {
         AddTapeSheet(
             onDismiss = { showTapeSheet = false },
-            onAdd = { pattern, text ->
+            onAdd = { pattern, text, textColor, fontFamily ->
                 val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
-                val tape = PlacedTape(id = newId("tape"), x = 40f, y = 20f, width = 170f, height = 34f,
-                    pattern = pattern, text = text, zIndex = highest + 1)
+                val tape = PlacedTape(id = newId("tape"), x = 40f, y = 20f, width = 190f, height = 38f,
+                    pattern = pattern, text = text, textColor = textColor, fontFamily = fontFamily, zIndex = highest + 1)
                 draft = draft.copy(tapes = draft.tapes + tape)
                 selectedTapeId = tape.id
                 selectedStickerId = null

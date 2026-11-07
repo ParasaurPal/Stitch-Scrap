@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import kotlin.math.*
 @Composable
 fun ManualStickerEdgeEditor(source: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     val context = LocalContext.current
+    val cursorOffsetPx = with(LocalDensity.current) { 54.dp.toPx() }
     val original = remember(source) {
         runCatching {
             val uri = Uri.parse(source)
@@ -135,12 +137,19 @@ fun ManualStickerEdgeEditor(source: String, onDismiss: () -> Unit, onSave: (Stri
                 Canvas(Modifier.fillMaxWidth().height(330.dp).pointerInput(source, brush, erase, snap, snapStrength) {
                     var previous: Offset? = null
                     fun point(p: Offset): Offset? = if (imageRect.width <= 0f || !imageRect.contains(p)) null else toBitmapPoint(p)
+                    // The brush follows the raised preview, not the finger's contact point.
+                    fun brushPosition(finger: Offset) = Offset(finger.x, finger.y - cursorOffsetPx)
                     detectDragGestures(
-                        onDragStart = { p -> saveUndo(); previous = point(p); touch = p; previous?.let { paintAt(it) } },
+                        onDragStart = { p ->
+                            saveUndo()
+                            touch = p
+                            previous = point(brushPosition(p))
+                            previous?.let { paintAt(it) }
+                        },
                         onDrag = { change, _ ->
                             change.consume()
                             touch = change.position
-                            val next = point(change.position)
+                            val next = point(brushPosition(change.position))
                             val from = previous
                             if (next != null && from != null) {
                                 val distance = hypot(next.x - from.x, next.y - from.y)
@@ -163,7 +172,7 @@ fun ManualStickerEdgeEditor(source: String, onDismiss: () -> Unit, onSave: (Stri
                     drawImage(edited.asImageBitmap(), dstOffset = androidx.compose.ui.unit.IntOffset(left.roundToInt(), top.roundToInt()),
                         dstSize = androidx.compose.ui.unit.IntSize(w.roundToInt(), h.roundToInt()))
                     touch?.let {
-                        val preview = Offset(it.x, (it.y - 54.dp.toPx()).coerceAtLeast(12.dp.toPx()))
+                        val preview = Offset(it.x, (it.y - cursorOffsetPx).coerceAtLeast(12.dp.toPx()))
                         drawCircle(Color(0xFFFF4FA3), radius = (brush * fit / 2f).coerceAtLeast(3f),
                             center = preview, style = Stroke(width = 2.dp.toPx()))
                         drawLine(Color(0xFFFF4FA3), Offset(it.x, preview.y + 8.dp.toPx()), it, strokeWidth = 1.dp.toPx())

@@ -14,8 +14,8 @@ android {
         applicationId = "com.stitchandscrap.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4.0-native"
+        versionCode = 6
+        versionName = "1.4.1-native"
         buildConfigField("String", "FIRESTORE_DATABASE_ID", "\"ai-studio-stitchscrapandro-6608a6c6-bfbd-4cc6-9ec4-35f578ec9e57\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -61,7 +61,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

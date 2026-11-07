@@ -63,6 +63,16 @@ export type StickerBorder =
   | 'neon'
   | 'none';
 
+export type StickerBorderPattern =
+  | 'solid'
+  | 'dashed'
+  | 'dotted'
+  | 'double'
+  | 'groove'
+  | 'ridge'
+  | 'inset'
+  | 'outset';
+
 export interface PlacedSticker {
   id: string;
   src: string;
@@ -77,6 +87,12 @@ export interface PlacedSticker {
   filter: StickerFilter;
   texture: StickerTexture;
   borderStyle: StickerBorder;
+  /** Surrounding border thickness in px (plain white solid is the default option). */
+  borderWidth?: number;
+  /** CSS border color, e.g. #ffffff. */
+  borderColor?: string;
+  /** CSS border pattern/style. */
+  borderPattern?: StickerBorderPattern;
   isFlippedX?: boolean;
   isLocked?: boolean;
   caption?: string;

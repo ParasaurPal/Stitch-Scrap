@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlacedSticker, StickerFilter, StickerTexture, StickerBorder } from '../types/journal';
+import { PlacedSticker, StickerFilter, StickerTexture, StickerBorder, StickerBorderPattern } from '../types/journal';
 import {
   RotateCw,
   Trash2,
@@ -198,6 +198,20 @@ export const StickerItem: React.FC<StickerItemProps> = ({
     }
   };
 
+  const hasCustomBorder =
+    sticker.borderWidth != null || sticker.borderPattern != null || sticker.borderColor != null;
+  const borderWidth = Math.max(0, Math.min(48, sticker.borderWidth ?? 0));
+  const borderColor = sticker.borderColor || '#ffffff';
+  const borderPattern: StickerBorderPattern = sticker.borderPattern || 'solid';
+  const customBorderStyle: React.CSSProperties | undefined = hasCustomBorder
+    ? {
+        borderWidth: `${borderWidth}px`,
+        borderStyle: borderPattern,
+        borderColor,
+        boxSizing: 'border-box',
+      }
+    : undefined;
+
   return (
     <div
       ref={containerRef}
@@ -219,6 +233,7 @@ export const StickerItem: React.FC<StickerItemProps> = ({
     >
       {/* Sticker / Photo Graphic with Texture & Border applied */}
       <div
+        style={customBorderStyle}
         className={`w-full h-full flex items-center justify-center overflow-hidden transition-transform ${getBorderClass(
           sticker.borderStyle
         )} ${getTextureClass(sticker.texture)}`}
@@ -316,12 +331,97 @@ export const StickerItem: React.FC<StickerItemProps> = ({
       {isSelected && showStyleMenu && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="sticker-controls absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-stone-900/95 backdrop-blur-md text-stone-200 p-3 rounded-2xl shadow-2xl border border-stone-700 z-50 text-xs"
+          className="sticker-controls absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-stone-900/95 backdrop-blur-md text-stone-200 p-3 rounded-2xl shadow-2xl border border-stone-700 z-50 text-xs max-h-[70vh] overflow-y-auto"
         >
-          {/* Border Styles */}
+          {/* Surrounding border: patterns + thickness (plain white solid, selectable px) */}
+          <div className="mb-2.5">
+            <span className="text-[10px] uppercase font-bold text-white block mb-1">
+              Border (Pattern &amp; Thickness)
+            </span>
+            <p className="text-[9px] text-stone-400 mb-1.5 leading-snug">
+              Plain white solid border included; choose thickness (px), pattern, and color.
+            </p>
+            <label className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-[10px] text-stone-300">Thickness</span>
+              <span className="text-[10px] font-mono text-pink-300">{borderWidth}px</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={24}
+              step={1}
+              value={borderWidth}
+              onChange={(e) => {
+                const w = Number(e.target.value);
+                onUpdate({ borderWidth: w, borderPattern, borderColor });
+              }}
+              className="w-full accent-pink-500 h-1.5 bg-stone-700 rounded-full"
+            />
+            <div className="mt-1.5">
+              <span className="text-[10px] text-stone-300 block mb-1">Pattern</span>
+              <div className="grid grid-cols-4 gap-1">
+                {(
+                  [
+                    { id: 'solid', label: 'Solid' },
+                    { id: 'dashed', label: 'Dashed' },
+                    { id: 'dotted', label: 'Dotted' },
+                    { id: 'double', label: 'Double' },
+                    { id: 'groove', label: 'Groove' },
+                    { id: 'ridge', label: 'Ridge' },
+                    { id: 'inset', label: 'Inset' },
+                    { id: 'outset', label: 'Outset' },
+                  ] as { id: StickerBorderPattern; label: string }[]
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      sounds.playClick();
+                      onUpdate({ borderPattern: p.id, borderWidth, borderColor });
+                    }}
+                    className={`py-1 px-0.5 rounded-lg text-center text-[9px] transition ${
+                      borderPattern === p.id && hasCustomBorder
+                        ? 'bg-white text-stone-900 font-bold'
+                        : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-1.5">
+              <span className="text-[10px] text-stone-300 block mb-1">Color</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {['#ffffff', '#111827', '#f472b6', '#f59e0b', '#38bdf8', '#a78bfa'].map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    title={c === '#ffffff' ? 'Plain white' : c}
+                    onClick={() => {
+                      sounds.playClick();
+                      onUpdate({ borderColor: c, borderWidth, borderPattern });
+                    }}
+                    className={`w-5 h-5 rounded-full border-2 ${
+                      borderColor.toLowerCase() === c ? 'border-pink-400 scale-110' : 'border-stone-600'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={borderColor}
+                  onChange={(e) => onUpdate({ borderColor: e.target.value, borderWidth, borderPattern })}
+                  className="w-6 h-5 rounded bg-transparent cursor-pointer border border-stone-600"
+                  title="Custom color"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Border Styles / Frame Presets */}
           <div className="mb-2.5">
             <span className="text-[10px] uppercase font-bold text-stone-400 block mb-1">
-              Sticker Border
+              Frame Preset
             </span>
             <div className="grid grid-cols-3 gap-1">
               {(['diecut', 'polaroid', 'stamp', 'gold', 'neon', 'none'] as StickerBorder[]).map(

@@ -245,6 +245,9 @@ export default function App() {
     height: number;
     borderStyle: 'diecut' | 'polaroid' | 'stamp' | 'gold' | 'neon' | 'none';
     texture: 'none' | 'glossy' | 'holographic' | 'matte' | 'crinkled' | 'glitter' | 'acetate';
+    borderWidth?: number;
+    borderColor?: string;
+    borderPattern?: 'solid' | 'dashed' | 'dotted' | 'double' | 'groove' | 'ridge' | 'inset' | 'outset';
   }) => {
     const highestZ = Math.max(
       ...currentEntry.stickers.map((s) => s.zIndex),
@@ -265,6 +268,9 @@ export default function App() {
       filter: 'none',
       texture: stickerData.texture,
       borderStyle: stickerData.borderStyle,
+      borderWidth: stickerData.borderWidth ?? 4,
+      borderColor: stickerData.borderColor ?? '#ffffff',
+      borderPattern: stickerData.borderPattern ?? 'solid',
     };
     handleUpdateEntry({ stickers: [...currentEntry.stickers, newSticker] });
   };

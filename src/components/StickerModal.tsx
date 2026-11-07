@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Image, Upload, Wand2, Check, Loader2, Bookmark, Scissors, Sliders, RefreshCw, Layers } from 'lucide-react';
 import { STOCK_STICKERS, StockSticker } from '../data/stickers';
 import { processImageEdgeDetection } from '../utils/edgeDetection';
-import { StickerTexture } from '../types/journal';
+import { StickerTexture, StickerBorderPattern } from '../types/journal';
 import { sounds } from '../utils/sound';
 
 interface StickerModalProps {
@@ -15,6 +15,9 @@ interface StickerModalProps {
     height: number;
     borderStyle: 'diecut' | 'polaroid' | 'stamp' | 'gold' | 'neon' | 'none';
     texture: 'none' | 'glossy' | 'holographic' | 'matte' | 'crinkled' | 'glitter' | 'acetate';
+    borderWidth?: number;
+    borderColor?: string;
+    borderPattern?: StickerBorderPattern;
   }) => void;
   customStickers: any[];
   onSaveToStash: (sticker: any) => void;
@@ -46,11 +49,14 @@ export const StickerModal: React.FC<StickerModalProps> = ({
   const [processedStickerImage, setProcessedStickerImage] = useState<string | null>(null);
   const [useEdgeDetection, setUseEdgeDetection] = useState<boolean>(true);
   const [edgeThreshold, setEdgeThreshold] = useState<number>(26);
-  const [borderThickness, setBorderThickness] = useState<number>(8);
+  const [borderThickness, setBorderThickness] = useState<number>(8); // baked contour (edge detection)
   const [isProcessingEdge, setIsProcessingEdge] = useState<boolean>(false);
   const [isNeuralProcessing, setIsNeuralProcessing] = useState<boolean>(false);
   const [uploadTexture, setUploadTexture] = useState<StickerTexture>('glossy');
   const [uploadBorder, setUploadBorder] = useState<'diecut' | 'polaroid' | 'stamp'>('diecut');
+  const [canvasBorderWidth, setCanvasBorderWidth] = useState<number>(4);
+  const [canvasBorderPattern, setCanvasBorderPattern] = useState<StickerBorderPattern>('solid');
+  const [canvasBorderColor, setCanvasBorderColor] = useState<string>('#ffffff');
   const [edgeError, setEdgeError] = useState<string | null>(null);
 
   // Category filter for stock
@@ -197,6 +203,9 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       height: 130,
       borderStyle: isDieCut ? 'diecut' : 'polaroid',
       texture: 'glossy',
+      borderWidth: 4,
+      borderColor: '#ffffff',
+      borderPattern: 'solid',
     });
     onClose();
   };
@@ -210,6 +219,9 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       height: stock.defaultHeight,
       borderStyle: 'diecut',
       texture: stock.category === 'nature' ? 'holographic' : 'glossy',
+      borderWidth: 4,
+      borderColor: '#ffffff',
+      borderPattern: 'solid',
     });
     onClose();
   };
@@ -227,6 +239,9 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       height: 140,
       borderStyle: useEdgeDetection ? 'none' : uploadBorder,
       texture: uploadTexture,
+      borderWidth: canvasBorderWidth,
+      borderColor: canvasBorderColor,
+      borderPattern: canvasBorderPattern,
     });
 
     // Save to custom sticker stash so it syncs across user devices
@@ -551,6 +566,9 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                             height: 120,
                             borderStyle: 'diecut',
                             texture: 'glossy',
+                            borderWidth: 4,
+                            borderColor: '#ffffff',
+                            borderPattern: 'solid',
                           });
                           onClose();
                         }}
@@ -805,6 +823,74 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                               : 'border-stamp'
                             : ''
                         }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Canvas border: plain white solid (mandatory option) + patterns/thickness */}
+                  <div className="bg-stone-900 p-2.5 rounded-xl border border-stone-800">
+                    <span className="text-[10px] uppercase font-bold text-stone-300 block mb-1">
+                      Border on Page (surrounding sticker/image)
+                    </span>
+                    <p className="text-[9px] text-stone-500 mb-1.5">
+                      Plain white solid border available with selectable thickness (px).
+                    </p>
+                    <label className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[10px] text-stone-400">Thickness</span>
+                      <span className="text-[10px] font-mono text-pink-300">{canvasBorderWidth}px</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      step={1}
+                      value={canvasBorderWidth}
+                      onChange={(e) => setCanvasBorderWidth(Number(e.target.value))}
+                      className="w-full accent-pink-500 h-1.5 bg-stone-700 rounded-full"
+                    />
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {(['solid', 'dashed', 'dotted', 'double', 'groove', 'ridge'] as StickerBorderPattern[]).map(
+                        (p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => {
+                              sounds.playClick();
+                              setCanvasBorderPattern(p);
+                            }}
+                            className={`px-2 py-1 rounded-lg text-[9px] capitalize transition ${
+                              canvasBorderPattern === p
+                                ? 'bg-white text-stone-900 font-bold'
+                                : 'bg-stone-800 text-stone-300'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                      {['#ffffff', '#111827', '#f472b6', '#38bdf8'].map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          title={c === '#ffffff' ? 'Plain white' : c}
+                          onClick={() => {
+                            sounds.playClick();
+                            setCanvasBorderColor(c);
+                          }}
+                          className={`w-5 h-5 rounded-full border-2 ${
+                            canvasBorderColor.toLowerCase() === c ? 'border-pink-400' : 'border-stone-600'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        value={canvasBorderColor}
+                        onChange={(e) => setCanvasBorderColor(e.target.value)}
+                        className="w-6 h-5 rounded bg-transparent cursor-pointer border border-stone-600"
+                        title="Custom color"
                       />
                     </div>
                   </div>

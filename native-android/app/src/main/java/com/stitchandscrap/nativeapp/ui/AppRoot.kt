@@ -38,7 +38,7 @@ fun AppRoot(vm: AppViewModel) {
                 userEmail = userEmail,
                 syncMessage = syncMessage,
                 working = working,
-                onSignIn = { signInLauncher.launch(vm.googleSignInIntent(context)) },
+                onSignIn = { signInLauncher.launch(vm.googleSignInIntent()) },
                 onSignOut = { vm.signOut() },
                 onBackup = { vm.backupToCloud() },
                 onRestore = { vm.restoreFromCloud() },

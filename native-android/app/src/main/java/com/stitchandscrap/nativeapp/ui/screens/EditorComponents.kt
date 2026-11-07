@@ -404,16 +404,49 @@ fun StickerPropertiesPanel(sticker: PlacedSticker, onChange: (PlacedSticker) -> 
 fun TapePropertiesPanel(tape: PlacedTape, onChange: (PlacedTape) -> Unit, onDelete: () -> Unit, onClose: () -> Unit) {
     var text by remember(tape.id) { mutableStateOf(tape.text) }
     Surface(tonalElevation = 2.dp, shadowElevation = 4.dp) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Washi Tape", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 TextButton(onClick = onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                TextButton(onClick = onClose) { Text("Close") }
+                TextButton(onClick = onClose) { Text("Done") }
             }
-            OutlinedTextField(value = text, onValueChange = { text = it; onChange(tape.copy(text = it)) }, label = { Text("Tape text") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = text, onValueChange = { text = it; onChange(tape.copy(text = it)) },
+                label = { Text("Tape text") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("Pattern", style = MaterialTheme.typography.labelMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("grid", "dots", "stripes", "kraft", "caution", "lavender", "frosted", "cyan").forEach { p ->
+                    FilterChip(selected = tape.pattern == p, onClick = { onChange(tape.copy(pattern = p)) }, label = { Text(p) })
+                }
+            }
+            Text("Lettering", style = MaterialTheme.typography.labelMedium)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("handwriting", "marker", "typewriter", "mono", "doodle").forEach { font ->
+                    FilterChip(selected = tape.fontFamily == font, onClick = { onChange(tape.copy(fontFamily = font)) }, label = { Text(font) })
+                }
+            }
+            Text("Ink color", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("#BE185D", "#854D0E", "#065F46", "#334155", "#581C87", "#0E7490", "#292524").forEach { hex ->
+                    Box(Modifier.size(28.dp).clip(CircleShape).background(parseColor(hex))
+                        .border(if (tape.textColor == hex) 3.dp else 1.dp,
+                            if (tape.textColor == hex) MaterialTheme.colorScheme.primary else Color.Gray, CircleShape)
+                        .clickable { onChange(tape.copy(textColor = hex)) })
+                }
+            }
+            Text("Width: ${tape.width.toInt()} dp", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.width.coerceIn(90f, 300f), onValueChange = { onChange(tape.copy(width = it)) },
+                valueRange = 90f..300f)
+            Text("Height: ${tape.height.toInt()} dp", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.height.coerceIn(20f, 70f), onValueChange = { onChange(tape.copy(height = it)) },
+                valueRange = 20f..70f)
+            Text("Opacity: ${(tape.opacity * 100).toInt()}%", style = MaterialTheme.typography.labelSmall)
+            Slider(value = tape.opacity.coerceIn(0.15f, 1f), onValueChange = { onChange(tape.copy(opacity = it)) },
+                valueRange = 0.15f..1f)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { onChange(tape.copy(rotation = tape.rotation - 10f)) }) { Text("↺ Rotate") }
                 OutlinedButton(onClick = { onChange(tape.copy(rotation = tape.rotation + 10f)) }) { Text("Rotate ↻") }
+                OutlinedButton(onClick = { onChange(tape.copy(zIndex = tape.zIndex + 1)) }) { Text("Forward ↑") }
             }
         }
     }

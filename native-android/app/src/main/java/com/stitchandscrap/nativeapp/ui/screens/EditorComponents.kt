@@ -414,9 +414,6 @@ fun StickerPropertiesPanel(
     onDuplicate: () -> Unit,
     onCutout: (threshold: Int, borderWidth: Int) -> Unit,
     isProcessing: Boolean,
-    onAiCutout: () -> Unit,
-    isAiProcessing: Boolean,
-    aiConfigured: Boolean,
     onClose: () -> Unit,
 ) {
     var threshold by remember(sticker.id) { mutableIntStateOf(26) }
@@ -490,16 +487,6 @@ fun StickerPropertiesPanel(
                         Text("✂  Remove background & make sticker")
                     }
                 }
-                OutlinedButton(onClick = onAiCutout, enabled = aiConfigured && !isAiProcessing,
-                    modifier = Modifier.fillMaxWidth()) {
-                    if (isAiProcessing) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Gemini is isolating the subject…")
-                    } else Text("✨ Gemini AI background removal")
-                }
-                if (!aiConfigured) Text("To enable Gemini cutout, save your server URL in the AI sticker generator above.",
-                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text("Border pattern", style = MaterialTheme.typography.labelMedium)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -583,15 +570,10 @@ fun AddStickerSheet(
     savedPhotos: List<String>,
     onAddSavedPhoto: (String) -> Unit,
     onAddEmoji: (emoji: String, label: String) -> Unit,
-    aiServerUrl: String,
-    onAiServerUrlChange: (String) -> Unit,
-    isGeneratingAi: Boolean,
-    aiError: String?,
-    onGenerateAi: (String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
-    var aiPrompt by remember { mutableStateOf("") }
+    var customStickerText by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("All") }
     val stock = listOf(
         Triple("Nature", "🌸", "Cherry blossom"), Triple("Nature", "🌷", "Tulip"),
@@ -633,30 +615,21 @@ fun AddStickerSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("✨ AI sticker generator", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Generate original sticker art with Gemini. Your API key stays on your server.",
+                    Text("✂ Sticker design studio", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Create reusable text decorations right on your phone. No account, API key, internet, or subscription needed.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(value = aiServerUrl, onValueChange = onAiServerUrlChange,
-                        label = { Text("Your Stitch & Scrap server URL") },
-                        placeholder = { Text("https://your-server.example.com") },
+                    OutlinedTextField(value = customStickerText, onValueChange = { customStickerText = it.take(28) },
+                        label = { Text("Your sticker wording") }, placeholder = { Text("hello sunshine") },
                         singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = aiPrompt, onValueChange = { aiPrompt = it },
-                        label = { Text("Describe your sticker") },
-                        placeholder = { Text("A sleepy fox curled up in a teacup, pastel watercolor") },
-                        minLines = 2, maxLines = 4, modifier = Modifier.fillMaxWidth())
-                    Button(onClick = { onGenerateAi(aiPrompt) },
-                        enabled = !isGeneratingAi && aiPrompt.isNotBlank() && aiServerUrl.startsWith("http"),
-                        modifier = Modifier.fillMaxWidth()) {
-                        if (isGeneratingAi) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Creating sticker…")
-                        } else Text("Generate AI sticker")
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("hello!", "good vibes", "favorite", "remember", "love this", "today").forEach { phrase ->
+                            AssistChip(onClick = { customStickerText = phrase }, label = { Text(phrase) })
+                        }
                     }
-                    if (!aiError.isNullOrBlank()) Text(aiError, color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("Requires the original web server deployed with GEMINI_API_KEY configured. This APK does not contain your secret key.",
-                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(onClick = { onAddEmoji(customStickerText.trim(), "Text sticker") ; customStickerText = "" },
+                        enabled = customStickerText.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+                        Text("＋ Add custom text sticker")
+                    }
                 }
             }
             Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("＋  Add photo from device") }

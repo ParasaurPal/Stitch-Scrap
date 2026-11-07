@@ -31,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -258,7 +259,68 @@ fun TapeItem(
             .clickable { onSelect() },
         contentAlignment = Alignment.Center
     ) {
-        Text(tape.text, color = parseColor(tape.textColor, Color(0xFF3D2B1F)), fontSize = 12.sp, maxLines = 1, textAlign = TextAlign.Center)
+        Canvas(Modifier.fillMaxSize()) {
+            val ink = Color(0xFF6B4B5B).copy(alpha = 0.16f * tape.opacity)
+            when (tape.pattern) {
+                "dots" -> {
+                    var y = 5.dp.toPx()
+                    while (y < size.height) {
+                        var x = 5.dp.toPx()
+                        while (x < size.width) {
+                            drawCircle(ink, radius = 1.7.dp.toPx(), center = Offset(x, y))
+                            x += 10.dp.toPx()
+                        }
+                        y += 10.dp.toPx()
+                    }
+                }
+                "stripes", "caution" -> {
+                    var x = -size.height
+                    while (x < size.width) {
+                        drawLine(if (tape.pattern == "caution") Color.Black.copy(alpha = 0.16f) else ink,
+                            Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 5.dp.toPx())
+                        x += 13.dp.toPx()
+                    }
+                }
+                "grid" -> {
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(ink, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.dp.toPx())
+                        x += 9.dp.toPx()
+                    }
+                    var y = 0f
+                    while (y < size.height) {
+                        drawLine(ink, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                        y += 9.dp.toPx()
+                    }
+                }
+                "lavender" -> {
+                    var x = 8.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(Color(0xFF9B7BC5).copy(alpha = 0.22f), 3.dp.toPx(), Offset(x, size.height / 2))
+                        x += 17.dp.toPx()
+                    }
+                }
+                "frosted" -> {
+                    drawLine(Color.White.copy(alpha = 0.4f), Offset(0f, 3.dp.toPx()), Offset(size.width, 3.dp.toPx()), 2.dp.toPx())
+                }
+                "kraft" -> {
+                    var x = 4.dp.toPx()
+                    while (x < size.width) {
+                        drawCircle(Color(0xFF795B3B).copy(alpha = 0.13f), 1.dp.toPx(), Offset(x, size.height * 0.35f))
+                        drawCircle(Color(0xFF795B3B).copy(alpha = 0.1f), 1.dp.toPx(), Offset(x + 5.dp.toPx(), size.height * 0.72f))
+                        x += 14.dp.toPx()
+                    }
+                }
+            }
+        }
+        Text(tape.text, color = parseColor(tape.textColor, Color(0xFF3D2B1F)), fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1, textAlign = TextAlign.Center,
+            fontFamily = when (tape.fontFamily) {
+                "typewriter", "mono" -> FontFamily.Monospace
+                "marker" -> FontFamily.SansSerif
+                "doodle" -> FontFamily.Cursive
+                else -> FontFamily.Cursive
+            })
     }
 }
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.stitchandscrap.nativeapp.data.model.*
+import kotlinx.coroutines.delay
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -87,6 +88,13 @@ fun EditorScreen(
     )
 
     fun save() = onSave(draft)
+
+    // Persist edits shortly after typing so leaving the editor or an app interruption
+    // does not discard the current page draft.
+    LaunchedEffect(draft) {
+        delay(500)
+        onSave(draft)
+    }
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         uri?.let {

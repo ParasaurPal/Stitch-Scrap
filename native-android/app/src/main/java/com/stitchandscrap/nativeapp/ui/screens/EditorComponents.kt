@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
@@ -450,8 +451,7 @@ fun StickerPropertiesPanel(
                 Modifier.fillMaxWidth().height(184.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFFE7E2E8))
-                    .then(Modifier)
-                    .also { },
+                    .onSizeChanged { previewSize = it },
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(Modifier.fillMaxSize()) {
@@ -468,21 +468,13 @@ fun StickerPropertiesPanel(
                         y += tile
                     }
                 }
-                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
-                    androidx.compose.runtime.LaunchedEffect(maxWidth, maxHeight) {
-                        previewSize = IntSize(
-                            with(androidx.compose.ui.platform.LocalDensity.current) { maxWidth.roundToPx() },
-                            with(androidx.compose.ui.platform.LocalDensity.current) { maxHeight.roundToPx() }
-                        )
-                    }
-                    StickerItem(
-                        sticker = previewSticker,
-                        selected = false,
-                        canvasSize = previewSize,
-                        onSelect = {},
-                        onMove = { _, _ -> }
-                    )
-                }
+                StickerItem(
+                    sticker = previewSticker,
+                    selected = false,
+                    canvasSize = previewSize,
+                    onSelect = {},
+                    onMove = { _, _ -> }
+                )
             }
             Text("Preview updates as you change settings below.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)

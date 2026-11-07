@@ -284,21 +284,79 @@ fun TapePropertiesPanel(tape: PlacedTape, onChange: (PlacedTape) -> Unit, onDele
 @Composable
 fun AddStickerSheet(onDismiss: () -> Unit, onPickImage: () -> Unit, onAddEmoji: (emoji: String, label: String) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("All") }
+    val stock = listOf(
+        Triple("Nature", "🌸", "Cherry blossom"), Triple("Nature", "🌷", "Tulip"),
+        Triple("Nature", "🌻", "Sunflower"), Triple("Nature", "🌿", "Leaf"),
+        Triple("Nature", "🍄", "Mushroom"), Triple("Nature", "🦋", "Butterfly"),
+        Triple("Nature", "🐝", "Bumblebee"), Triple("Nature", "🐞", "Ladybug"),
+        Triple("Nature", "🌙", "Moon"), Triple("Nature", "⭐", "Star"),
+        Triple("Nature", "☁️", "Cloud"), Triple("Nature", "🌈", "Rainbow"),
+        Triple("Cozy", "☕", "Coffee"), Triple("Cozy", "🧸", "Teddy bear"),
+        Triple("Cozy", "🕯️", "Candle"), Triple("Cozy", "🧶", "Yarn"),
+        Triple("Cozy", "🧦", "Cozy socks"), Triple("Cozy", "🛋️", "Sofa"),
+        Triple("Cozy", "📖", "Open book"), Triple("Cozy", "🫖", "Teapot"),
+        Triple("Food", "🍓", "Strawberry"), Triple("Food", "🍒", "Cherries"),
+        Triple("Food", "🍋", "Lemon"), Triple("Food", "🍰", "Cake"),
+        Triple("Food", "🍪", "Cookie"), Triple("Food", "🍯", "Honey"),
+        Triple("Food", "🥐", "Croissant"), Triple("Food", "🍵", "Tea"),
+        Triple("Music", "🎧", "Headphones"), Triple("Music", "📼", "Cassette"),
+        Triple("Music", "🎵", "Music note"), Triple("Music", "🎸", "Guitar"),
+        Triple("Music", "💿", "CD"), Triple("Music", "🎤", "Microphone"),
+        Triple("Travel", "✈️", "Airplane"), Triple("Travel", "🗺️", "Map"),
+        Triple("Travel", "🧳", "Suitcase"), Triple("Travel", "📷", "Camera"),
+        Triple("Travel", "🎟️", "Ticket"), Triple("Travel", "🚂", "Train"),
+        Triple("Travel", "🏕️", "Camping"), Triple("Travel", "🌊", "Ocean"),
+        Triple("Decor", "💖", "Heart"), Triple("Decor", "✨", "Sparkles"),
+        Triple("Decor", "🎀", "Bow"), Triple("Decor", "🪞", "Mirror"),
+        Triple("Decor", "💌", "Love letter"), Triple("Decor", "🧷", "Safety pin"),
+        Triple("Decor", "✂️", "Scissors"), Triple("Decor", "🪡", "Needle"),
+    )
+    val categories = listOf("All", "Nature", "Cozy", "Food", "Music", "Travel", "Decor")
+    val visible = stock.filter { (group, emoji, label) ->
+        (category == "All" || category == group) &&
+            (query.isBlank() || label.contains(query, true) || emoji.contains(query))
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Add Sticker", style = MaterialTheme.typography.titleLarge)
-            Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("Upload image / photo") }
-            Text("Stock stickers", style = MaterialTheme.typography.labelLarge)
-            val stock = listOf("⭐" to "Star", "💖" to "Heart", "🌸" to "Flower", "🎧" to "Music", "📷" to "Camera", "☕" to "Coffee", "✨" to "Sparkle", "🦋" to "Butterfly", "🍓" to "Strawberry", "📼" to "Cassette")
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                stock.forEach { (e, l) ->
-                    Surface(onClick = { onAddEmoji(e, l) }, shape = RoundedCornerShape(12.dp), tonalElevation = 2.dp) {
-                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(e, fontSize = 28.sp); Text(l, fontSize = 10.sp) }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Sticker collection", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Choose a decoration or add one of your own photos.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) { Text("＋  Add photo from device") }
+            OutlinedTextField(value = query, onValueChange = { query = it },
+                label = { Text("Search stickers") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                categories.forEach { item ->
+                    FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item) })
+                }
+            }
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                contentPadding = PaddingValues(bottom = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(visible.size) { index ->
+                    val (_, emoji, label) = visible[index]
+                    Surface(onClick = { onAddEmoji(emoji, label) },
+                        shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(vertical = 10.dp, horizontal = 3.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(emoji, fontSize = 28.sp)
+                            Text(label, fontSize = 9.sp, maxLines = 1)
+                        }
                     }
                 }
             }
-            Text("Added stickers get a plain white border (4px solid) by default; select a sticker to change pattern/thickness/px.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-            Spacer(Modifier.height(16.dp))
+            Text("New stickers start with a white die-cut border. Select one on the page to adjust its size, angle, and border.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(10.dp))
         }
     }
 }

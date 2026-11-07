@@ -252,7 +252,7 @@ fun StickerItem(
             Modifier.fillMaxSize().padding((borderW / 2).dp).let { m ->
                 if (borderW > 0 && pe == null) m.border(borderW.dp, borderColor, RoundedCornerShape(8.dp))
                 else m
-            }.clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.88f)),
+            }.clip(RoundedCornerShape(8.dp)).background(Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             if (sticker.src.startsWith("emoji:")) {

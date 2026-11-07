@@ -265,6 +265,9 @@ fun EditorScreen(
 
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             val highest = (draft.stickers.map { s -> s.zIndex } + draft.tapes.map { t -> t.zIndex }).maxOrNull() ?: 10
             val sticker = PlacedSticker(
                 id = newId("stk"), src = it.toString(), alt = "Photo sticker",
@@ -424,6 +427,14 @@ fun EditorScreen(
                     sticker = selectedSticker,
                     onChange = { updated -> draft = draft.copy(stickers = draft.stickers.map { if (it.id == updated.id) updated else it }) },
                     onDelete = { draft = draft.copy(stickers = draft.stickers.filterNot { it.id == selectedSticker.id }); selectedStickerId = null },
+                    onDuplicate = {
+                        val highest = (draft.stickers.map { it.zIndex } + draft.tapes.map { it.zIndex }).maxOrNull() ?: 10
+                        val copy = selectedSticker.copy(id = newId("stk"),
+                            x = (selectedSticker.x + 5f).coerceAtMost(95f),
+                            y = (selectedSticker.y + 5f).coerceAtMost(95f), zIndex = highest + 1)
+                        draft = draft.copy(stickers = draft.stickers + copy)
+                        selectedStickerId = copy.id
+                    },
                     onClose = { selectedStickerId = null }
                 )
             }

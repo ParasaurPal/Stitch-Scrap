@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -44,8 +45,25 @@ jobs:
       - name: Build Release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: Releasing using Hub
-        uses: sangatdesai/release-apk@main
+      - name: Locate release APK
+        id: apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "apk_path=native-android/$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found APK: native-android/$APK_PATH"
+        working-directory: .
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stitch-and-scrap-native-release-apk
+          path: ${{ steps.apk.outputs.apk_path }}
+
+      - name: Publish Release APK
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ steps.apk.outputs.apk_path }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APP_FOLDER: native-android/app

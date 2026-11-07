@@ -10,6 +10,8 @@ interface AndroidNavBarProps {
   onExport: () => void;
   journalCount: number;
   themeColor: string;
+  isDispenserActive?: boolean;
+  onToggleDispenser?: () => void;
 }
 
 export const AndroidNavBar: React.FC<AndroidNavBarProps> = ({
@@ -20,6 +22,8 @@ export const AndroidNavBar: React.FC<AndroidNavBarProps> = ({
   onExport,
   journalCount,
   themeColor,
+  isDispenserActive = false,
+  onToggleDispenser,
 }) => {
   return (
     <div className="w-full bg-stone-900/95 backdrop-blur-md border-t border-stone-800 text-stone-300 px-3 py-2 z-40 select-none">
@@ -72,18 +76,34 @@ export const AndroidNavBar: React.FC<AndroidNavBarProps> = ({
           <span className="text-[10px] font-bold text-stone-200 mt-0.5">Stickers</span>
         </button>
 
-        {/* Add Washi Tape */}
+        {/* Add Washi Tape / Stylus Dispenser */}
         <button
           onClick={() => {
             sounds.playTapeTear();
-            onOpenTape();
+            if (onToggleDispenser) {
+              onToggleDispenser();
+            } else {
+              onOpenTape();
+            }
           }}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-stone-300 hover:text-white active:scale-95 transition"
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl active:scale-95 transition ${
+            isDispenserActive
+              ? 'text-emerald-400 font-bold scale-105'
+              : 'text-stone-300 hover:text-white'
+          }`}
         >
-          <div className="p-1 rounded-full bg-stone-800">
-            <Bandage size={18} className="text-emerald-400" />
+          <div
+            className={`p-1 rounded-full transition ${
+              isDispenserActive
+                ? 'bg-emerald-500 text-stone-950 ring-2 ring-emerald-400'
+                : 'bg-stone-800 text-emerald-400'
+            }`}
+          >
+            <Bandage size={18} className={isDispenserActive ? 'animate-pulse' : ''} />
           </div>
-          <span className="text-[10px] font-medium">+ Tape</span>
+          <span className="text-[10px] font-medium">
+            {isDispenserActive ? 'Dispensing' : 'Tape Roll'}
+          </span>
         </button>
 
         {/* Export / Share Spread */}

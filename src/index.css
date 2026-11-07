@@ -296,18 +296,149 @@
   box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+.cursor-tape-dispenser {
+  cursor: crosshair;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+/* Tape dispenser unrolling glow */
+.dispenser-active-canvas {
+  touch-action: none;
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(150, 150, 150, 0.3);
-  border-radius: 9999px;
+
+/* 3D Realistic Book Perspective */
+.journal-perspective-stage {
+  perspective: 1800px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(150, 150, 150, 0.5);
+
+/* Authentic book spine binding crease */
+.book-spine-crease {
+  box-shadow: 
+    inset 16px 0 24px -10px rgba(0, 0, 0, 0.15),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08);
 }
+
+/* Real Page Turn Animation: Forward (Next Page) */
+@keyframes fluidPageTurnForward {
+  0% {
+    transform: rotateY(0deg) translateZ(0);
+    transform-origin: left center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    filter: brightness(1);
+  }
+  25% {
+    transform: rotateY(-32deg) skewY(-3.5deg) translateZ(28px);
+    transform-origin: left center;
+    box-shadow: -15px 12px 35px rgba(0, 0, 0, 0.32);
+    filter: brightness(1.03);
+  }
+  50% {
+    transform: rotateY(-88deg) skewY(-1deg) translateZ(55px);
+    transform-origin: left center;
+    box-shadow: -25px 15px 45px rgba(0, 0, 0, 0.38);
+    filter: brightness(0.92);
+  }
+  75% {
+    transform: rotateY(-145deg) skewY(2.5deg) translateZ(35px);
+    transform-origin: left center;
+    box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.25);
+    filter: brightness(0.88);
+  }
+  100% {
+    transform: rotateY(-180deg) translateZ(0);
+    transform-origin: left center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+  }
+}
+
+/* Real Page Turn Animation: Backward (Previous Page) */
+@keyframes fluidPageTurnBackward {
+  0% {
+    transform: rotateY(-180deg) translateZ(0);
+    transform-origin: left center;
+    opacity: 0;
+    filter: brightness(0.85);
+  }
+  25% {
+    transform: rotateY(-145deg) skewY(2.5deg) translateZ(35px);
+    transform-origin: left center;
+    opacity: 1;
+    box-shadow: -10px 10px 30px rgba(0, 0, 0, 0.25);
+    filter: brightness(0.9);
+  }
+  50% {
+    transform: rotateY(-88deg) skewY(1deg) translateZ(55px);
+    transform-origin: left center;
+    box-shadow: -25px 15px 45px rgba(0, 0, 0, 0.38);
+    filter: brightness(0.94);
+  }
+  75% {
+    transform: rotateY(-32deg) skewY(-2.5deg) translateZ(28px);
+    transform-origin: left center;
+    box-shadow: -15px 12px 35px rgba(0, 0, 0, 0.32);
+    filter: brightness(1.02);
+  }
+  100% {
+    transform: rotateY(0deg) translateZ(0);
+    transform-origin: left center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    filter: brightness(1);
+    opacity: 1;
+  }
+}
+
+.animate-page-turn-forward {
+  animation: fluidPageTurnForward 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, box-shadow, filter;
+  pointer-events: none;
+}
+
+.animate-page-turn-backward {
+  animation: fluidPageTurnBackward 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, box-shadow, filter;
+  pointer-events: none;
+}
+
+/* Interactive Dog-Ear Corner Curl */
+.dog-ear-curl-right {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, transparent 48%, rgba(0,0,0,0.12) 48%, rgba(255,255,255,0.7) 56%, #e8dec8 100%);
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+  cursor: pointer;
+  transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: -3px -3px 8px rgba(0,0,0,0.12);
+  z-index: 30;
+}
+.dog-ear-curl-right:hover {
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(135deg, transparent 44%, rgba(0,0,0,0.2) 44%, rgba(255,255,255,0.85) 54%, #ded3be 100%);
+  box-shadow: -6px -6px 16px rgba(0,0,0,0.22);
+}
+
+.dog-ear-curl-left {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(-135deg, transparent 48%, rgba(0,0,0,0.12) 48%, rgba(255,255,255,0.7) 56%, #e8dec8 100%);
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+  cursor: pointer;
+  transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 3px -3px 8px rgba(0,0,0,0.12);
+  z-index: 30;
+}
+.dog-ear-curl-left:hover {
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(-135deg, transparent 44%, rgba(0,0,0,0.2) 44%, rgba(255,255,255,0.85) 54%, #ded3be 100%);
+  box-shadow: 6px -6px 16px rgba(0,0,0,0.22);
+}
+

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PlacedTape, TapePattern } from '../types/journal';
-import { RotateCw, Trash2, ArrowUp, ArrowDown, Edit3, Check, Copy } from 'lucide-react';
+import { RotateCw, Trash2, ArrowUp, ArrowDown, Edit3, Check, Copy, Clock } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface WashiTapeItemProps {
@@ -185,6 +185,22 @@ export const WashiTapeItem: React.FC<WashiTapeItemProps> = ({
         isSelected ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
       }`}
     >
+      {/* Creation Timestamp Stamp */}
+      {tape.timestamp && (
+        <div
+          className={`absolute -top-5 pointer-events-none z-30 px-1.5 py-0.5 rounded-md bg-stone-900/90 text-[9px] font-mono font-bold text-stone-200 border border-white/20 shadow-md flex items-center gap-1 whitespace-nowrap ${
+            tape.timestampPosition === 'left'
+              ? 'left-0'
+              : tape.timestampPosition === 'right'
+              ? 'right-0'
+              : 'left-1/2 -translate-x-1/2'
+          }`}
+        >
+          <Clock size={9} className="text-emerald-400 shrink-0" />
+          <span>{tape.timestamp}</span>
+        </div>
+      )}
+
       {/* Washi Tape Strip with Jagged Torn Ends */}
       <div
         className={`w-full h-full washi-torn-edge shadow-md flex items-center justify-center px-3 overflow-hidden ${getPatternClass(
@@ -237,6 +253,31 @@ export const WashiTapeItem: React.FC<WashiTapeItemProps> = ({
             className="p-1 hover:bg-stone-800 rounded text-pink-400"
           >
             <Edit3 size={13} />
+          </button>
+
+          {/* Timestamp toggle & position */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              sounds.playClick();
+              if (!tape.timestamp) {
+                const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                onUpdate({ timestamp: now, timestampPosition: 'center' });
+              } else if (tape.timestampPosition === 'center') {
+                onUpdate({ timestampPosition: 'right' });
+              } else if (tape.timestampPosition === 'right') {
+                onUpdate({ timestampPosition: 'left' });
+              } else {
+                onUpdate({ timestamp: undefined });
+              }
+            }}
+            title={`Creation Time: ${tape.timestamp ? `${tape.timestamp} (${tape.timestampPosition || 'center'})` : 'None'} (Click to cycle: Mid -> Right -> Left -> Off)`}
+            className={`p-1 hover:bg-stone-800 rounded active:scale-90 flex items-center gap-0.5 ${
+              tape.timestamp ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40' : 'text-stone-400 hover:text-white'
+            }`}
+          >
+            <Clock size={13} />
+            {tape.timestamp && <span className="text-[9px] font-mono">{tape.timestampPosition === 'center' ? 'Mid' : tape.timestampPosition === 'right' ? 'R' : 'L'}</span>}
           </button>
 
           {/* Rotate */}

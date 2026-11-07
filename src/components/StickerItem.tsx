@@ -10,6 +10,7 @@ import {
   Sparkles,
   Sliders,
   Maximize2,
+  Clock,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
@@ -231,6 +232,22 @@ export const StickerItem: React.FC<StickerItemProps> = ({
         isSelected ? 'ring-2 ring-pink-500 ring-offset-2' : ''
       }`}
     >
+      {/* Creation Timestamp Stamp */}
+      {sticker.timestamp && (
+        <div
+          className={`absolute -top-5 pointer-events-none z-30 px-1.5 py-0.5 rounded-md bg-stone-900/90 text-[9px] font-mono font-bold text-stone-200 border border-white/20 shadow-md flex items-center gap-1 whitespace-nowrap ${
+            sticker.timestampPosition === 'left'
+              ? 'left-0'
+              : sticker.timestampPosition === 'right'
+              ? 'right-0'
+              : 'left-1/2 -translate-x-1/2'
+          }`}
+        >
+          <Clock size={9} className="text-pink-400 shrink-0" />
+          <span>{sticker.timestamp}</span>
+        </div>
+      )}
+
       {/* Sticker / Photo Graphic with Texture & Border applied */}
       <div
         style={customBorderStyle}
@@ -278,6 +295,31 @@ export const StickerItem: React.FC<StickerItemProps> = ({
             className="p-1.5 hover:bg-stone-800 rounded text-purple-400 active:scale-90"
           >
             <FlipHorizontal size={13} />
+          </button>
+
+          {/* Timestamp Toggle & Position */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              sounds.playClick();
+              if (!sticker.timestamp) {
+                const now = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                onUpdate({ timestamp: now, timestampPosition: 'center' });
+              } else if (sticker.timestampPosition === 'center') {
+                onUpdate({ timestampPosition: 'right' });
+              } else if (sticker.timestampPosition === 'right') {
+                onUpdate({ timestampPosition: 'left' });
+              } else {
+                onUpdate({ timestamp: undefined });
+              }
+            }}
+            title={`Creation Time: ${sticker.timestamp ? `${sticker.timestamp} (${sticker.timestampPosition || 'center'})` : 'None'} (Click to cycle: Mid -> Right -> Left -> Off)`}
+            className={`p-1.5 hover:bg-stone-800 rounded active:scale-90 flex items-center gap-0.5 ${
+              sticker.timestamp ? 'bg-pink-600/30 text-pink-300 border border-pink-500/40' : 'text-stone-400 hover:text-white'
+            }`}
+          >
+            <Clock size={13} />
+            {sticker.timestamp && <span className="text-[9px] font-mono">{sticker.timestampPosition === 'center' ? 'Mid' : sticker.timestampPosition === 'right' ? 'R' : 'L'}</span>}
           </button>
 
           {/* Style & Texture Filter Menu Toggle */}

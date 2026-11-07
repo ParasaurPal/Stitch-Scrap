@@ -1,3 +1,6 @@
+export type TimestampPosition = 'left' | 'center' | 'right';
+export type AutoTimestampSetting = 'none' | 'left' | 'center' | 'right';
+
 export interface MoodItem {
   id: string;
   label: string;
@@ -5,6 +8,7 @@ export interface MoodItem {
   color: string;
   intensity: number; // 1 - 100%
   note?: string;
+  isCustom?: boolean;
 }
 
 export interface CurrentlyListening {
@@ -23,6 +27,7 @@ export interface CurrentlyReading {
 
 export interface BlogMetadata {
   mood: MoodItem;
+  moods?: MoodItem[];
   currentlyListening: CurrentlyListening;
   currentlyReading: CurrentlyReading;
   currentlyWatching?: string;
@@ -96,6 +101,8 @@ export interface PlacedSticker {
   isFlippedX?: boolean;
   isLocked?: boolean;
   caption?: string;
+  timestamp?: string;
+  timestampPosition?: TimestampPosition;
 }
 
 export type TapePattern =
@@ -122,6 +129,8 @@ export interface PlacedTape {
   zIndex: number;
   opacity: number;
   isLocked?: boolean;
+  timestamp?: string;
+  timestampPosition?: TimestampPosition;
 }
 
 export type PaperTextureType =
@@ -159,7 +168,7 @@ export interface Journal {
   name: string;
   description: string;
   themeColor: string; // e.g. #f472b6 or #8a5a44
-  coverImage: string; // cover image theme ID or URL
+  coverImage?: string; // cover image theme ID or URL
   icon: string;
   defaultPaper: PaperTextureType;
   coverPattern?: string;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, syncAllToCloud, fetchAllFromCloud, subscribeToUserData } from './services/firebase';
-import { Journal, JournalEntry, PlacedSticker, PlacedTape, BlogMetadata } from './types/journal';
+import { Journal, JournalEntry, PlacedSticker, PlacedTape, BlogMetadata, AutoTimestampSetting } from './types/journal';
 import { INITIAL_JOURNALS, INITIAL_ENTRIES, MOOD_PRESETS } from './data/defaultData';
 import { AndroidStatusBar } from './components/AndroidStatusBar';
 import { AndroidNavBar } from './components/AndroidNavBar';
@@ -21,6 +21,26 @@ export default function App() {
   const STORAGE_ENTRIES_KEY = 'stitch_scrap_entries_v2';
   const STORAGE_STICKERS_KEY = 'stitch_scrap_custom_stickers_v2';
   const STORAGE_LAST_SYNC_KEY = 'stitch_scrap_last_sync_v2';
+  const STORAGE_AUTO_TIMESTAMP_KEY = 'stitch_scrap_auto_timestamp_pos_v2';
+
+  // Auto Timestamp Setting: 'none' | 'left' | 'center' | 'right'
+  const [autoTimestampPos, setAutoTimestampPos] = useState<AutoTimestampSetting>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_AUTO_TIMESTAMP_KEY);
+      return (saved as AutoTimestampSetting) || 'none';
+    } catch {
+      return 'none';
+    }
+  });
+
+  const handleSetAutoTimestampPos = (pos: AutoTimestampSetting) => {
+    setAutoTimestampPos(pos);
+    try {
+      localStorage.setItem(STORAGE_AUTO_TIMESTAMP_KEY, pos);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // State: Journals & Entries
   const [journals, setJournals] = useState<Journal[]>(() => {
@@ -66,7 +86,8 @@ export default function App() {
   // Layout Viewport mode: Phone Frame vs Immersive
   const [isPhoneFrame, setIsPhoneFrame] = useState<boolean>(true);
 
-  // Modals
+  // Modals & Tools
+  const [isDispenserMode, setIsDispenserMode] = useState<boolean>(false);
   const [isJournalsOpen, setIsJournalsOpen] = useState(false);
   const [isStickersOpen, setIsStickersOpen] = useState(false);
   const [isTapeOpen, setIsTapeOpen] = useState(false);
@@ -90,6 +111,7 @@ export default function App() {
       paperTexture: currentJournal.defaultPaper || 'lined',
       blogMetadata: {
         mood: MOOD_PRESETS[1],
+        moods: [MOOD_PRESETS[1]],
         currentlyListening: { song: '', artist: '', isPlaying: false },
         currentlyReading: { title: '', author: '', progress: '' },
       },
@@ -208,6 +230,7 @@ export default function App() {
       paperTexture: currentJournal.defaultPaper || 'lined',
       blogMetadata: {
         mood: MOOD_PRESETS[1],
+        moods: [MOOD_PRESETS[1]],
         currentlyListening: { song: '', artist: '', isPlaying: false },
         currentlyReading: { title: '', author: '', progress: '' },
       },
@@ -254,6 +277,7 @@ export default function App() {
       ...currentEntry.tapes.map((t) => t.zIndex),
       10
     );
+    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const newSticker: PlacedSticker = {
       id: `stk-${Date.now()}`,
       src: stickerData.src,
@@ -271,6 +295,8 @@ export default function App() {
       borderWidth: stickerData.borderWidth ?? 4,
       borderColor: stickerData.borderColor ?? '#ffffff',
       borderPattern: stickerData.borderPattern ?? 'solid',
+      timestamp: autoTimestampPos !== 'none' ? formattedTime : undefined,
+      timestampPosition: autoTimestampPos !== 'none' ? autoTimestampPos : undefined,
     };
     handleUpdateEntry({ stickers: [...currentEntry.stickers, newSticker] });
   };
@@ -289,6 +315,7 @@ export default function App() {
       ...currentEntry.tapes.map((t) => t.zIndex),
       10
     );
+    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     const newTape: PlacedTape = {
       id: `tape-${Date.now()}`,
       x: 40 + Math.random() * 15,
@@ -302,6 +329,8 @@ export default function App() {
       fontFamily: tapeData.fontFamily,
       zIndex: highestZ + 1,
       opacity: 0.92,
+      timestamp: autoTimestampPos !== 'none' ? formattedTime : undefined,
+      timestampPosition: autoTimestampPos !== 'none' ? autoTimestampPos : undefined,
     };
     handleUpdateEntry({ tapes: [...currentEntry.tapes, newTape] });
   };
@@ -382,6 +411,10 @@ export default function App() {
             totalEntries={journalEntries.length}
             onOpenBlogMeta={() => setIsBlogMetaOpen(true)}
             themeColor={currentJournal.themeColor}
+            isDispenserMode={isDispenserMode}
+            onToggleDispenser={(active) => setIsDispenserMode(active)}
+            autoTimestampPos={autoTimestampPos}
+            onChangeAutoTimestampPos={handleSetAutoTimestampPos}
           />
         </div>
 
@@ -394,6 +427,11 @@ export default function App() {
           onExport={() => setIsExportOpen(true)}
           journalCount={journals.length}
           themeColor={currentJournal.themeColor}
+          isDispenserActive={isDispenserMode}
+          onToggleDispenser={() => {
+            sounds.playTapeTear();
+            setIsDispenserMode((prev) => !prev);
+          }}
         />
       </div>
 

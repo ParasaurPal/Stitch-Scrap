@@ -45,22 +45,31 @@ export const BlogWidgetsBar: React.FC<BlogWidgetsBarProps> = ({
         }}
         className="w-full bg-amber-50/80 dark:bg-stone-800/80 backdrop-blur border border-amber-200/60 dark:border-stone-700/60 rounded-2xl p-2.5 shadow-sm transition hover:shadow cursor-pointer"
       >
-        {/* Top Row: Mood & Music Player Sticker */}
+        {/* Top Row: Moods & Music Player Sticker */}
         <div className="flex items-center justify-between gap-2 text-xs">
-          {/* Mood Pill */}
-          <div className="flex items-center gap-1.5 bg-white/90 dark:bg-stone-900/90 px-2.5 py-1 rounded-xl shadow-xs border border-stone-200/50 dark:border-stone-700">
-            <span className="text-base">{metadata.mood.emoji}</span>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-stone-600 dark:text-stone-300 uppercase tracking-wider font-semibold">
-                Mood
-              </span>
-              <span className="font-bold text-stone-800 dark:text-stone-100 flex items-center gap-1">
-                {metadata.mood.label}
-                <span className="text-[10px] px-1 py-0.2 bg-stone-100 dark:bg-stone-800 rounded font-mono text-stone-600 dark:text-stone-400">
-                  {metadata.mood.intensity}%
-                </span>
-              </span>
-            </div>
+          {/* Mood Pills (Single or Multiple) */}
+          <div className="flex flex-wrap items-center gap-1.5 flex-1 max-w-[65%]">
+            {(metadata.moods && metadata.moods.length > 0 ? metadata.moods : [metadata.mood]).map((m, idx) => (
+              <div
+                key={m?.id || idx}
+                className="flex items-center gap-1.5 bg-white/90 dark:bg-stone-900/90 px-2 py-1 rounded-xl shadow-xs border border-stone-200/50 dark:border-stone-700"
+              >
+                <span className="text-base shrink-0">{m?.emoji || '✨'}</span>
+                <div className="flex flex-col">
+                  {idx === 0 && (
+                    <span className="text-[9px] text-stone-600 dark:text-stone-300 uppercase tracking-wider font-semibold leading-tight">
+                      {metadata.moods && metadata.moods.length > 1 ? `Moods (${metadata.moods.length})` : 'Mood'}
+                    </span>
+                  )}
+                  <span className="font-bold text-stone-800 dark:text-stone-100 flex items-center gap-1 text-[11px] leading-tight">
+                    {m?.label}
+                    <span className="text-[9px] px-1 py-0.2 bg-stone-100 dark:bg-stone-800 rounded font-mono text-stone-600 dark:text-stone-400">
+                      {m?.intensity}%
+                    </span>
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Retro Mini Music Player */}

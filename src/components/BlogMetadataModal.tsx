@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Smile, Music, BookOpen, MapPin, Coffee, Flame, Check, Sparkles } from 'lucide-react';
+import { X, Smile, Music, BookOpen, MapPin, Coffee, Flame, Check, Sparkles, Plus, Trash2, Palette } from 'lucide-react';
 import { BlogMetadata, MoodItem } from '../types/journal';
 import { MOOD_PRESETS } from '../data/defaultData';
 import { sounds } from '../utils/sound';
@@ -12,6 +12,20 @@ interface BlogMetadataModalProps {
   themeColor: string;
 }
 
+const CUSTOM_MOODS_STORAGE_KEY = 'stitch_scrap_custom_moods_v2';
+
+const EMOJI_PRESETS = ['✨', '☕', '🎧', '🌙', '🧸', '🍄', '⚡', '🌸', '🪐', '🔮', '🎨', '🍕', '🐱', '🌿', '💤', '🔥', '📚', '🕯️', '🦋', '🥑'];
+const COLOR_PRESETS = [
+  '#ec4899', // pink
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#06b6d4', // cyan
+  '#8b5cf6', // purple
+  '#ef4444', // rose
+  '#f97316', // orange
+  '#6366f1', // indigo
+];
+
 export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
   isOpen,
   onClose,
@@ -19,9 +33,31 @@ export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
   onSave,
   themeColor,
 }) => {
-  const [selectedMood, setSelectedMood] = useState<MoodItem>(metadata.mood || MOOD_PRESETS[0]);
-  const [moodIntensity, setMoodIntensity] = useState<number>(metadata.mood?.intensity || 80);
-  const [moodNote, setMoodNote] = useState<string>(metadata.mood?.note || '');
+  const [customMoods, setCustomMoods] = useState<MoodItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_MOODS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const initialMoods: MoodItem[] =
+    metadata.moods && metadata.moods.length > 0
+      ? metadata.moods
+      : metadata.mood
+      ? [metadata.mood]
+      : [MOOD_PRESETS[0]];
+
+  const [selectedMoods, setSelectedMoods] = useState<MoodItem[]>(initialMoods);
+  const [moodIntensity, setMoodIntensity] = useState<number>(initialMoods[0]?.intensity || 80);
+  const [moodNote, setMoodNote] = useState<string>(initialMoods[0]?.note || '');
+
+  // Custom mood builder state
+  const [isCreatingMood, setIsCreatingMood] = useState<boolean>(false);
+  const [newMoodLabel, setNewMoodLabel] = useState<string>('');
+  const [newMoodEmoji, setNewMoodEmoji] = useState<string>('✨');
+  const [newMoodColor, setNewMoodColor] = useState<string>('#ec4899');
 
   const [song, setSong] = useState(metadata.currentlyListening?.song || '');
   const [artist, setArtist] = useState(metadata.currentlyListening?.artist || '');
@@ -42,14 +78,75 @@ export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleToggleMood = (moodItem: MoodItem) => {
+    sounds.playClick();
+    const isAlreadySelected = selectedMoods.some((m) => m.id === moodItem.id);
+    if (isAlreadySelected) {
+      if (selectedMoods.length > 1) {
+        setSelectedMoods(selectedMoods.filter((m) => m.id !== moodItem.id));
+      }
+    } else {
+      setSelectedMoods([
+        ...selectedMoods,
+        { ...moodItem, intensity: moodIntensity, note: moodNote },
+      ]);
+    }
+  };
+
+  const handleCreateCustomMood = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMoodLabel.trim()) return;
+
+    sounds.playStickerPop();
+    const created: MoodItem = {
+      id: `custom-mood-${Date.now()}`,
+      label: newMoodLabel.trim(),
+      emoji: newMoodEmoji || '✨',
+      color: newMoodColor,
+      intensity: 85,
+      isCustom: true,
+    };
+
+    const updatedList = [created, ...customMoods];
+    setCustomMoods(updatedList);
+    try {
+      localStorage.setItem(CUSTOM_MOODS_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch (e) {
+      console.error('Failed to save custom mood', e);
+    }
+
+    setSelectedMoods([...selectedMoods, created]);
+    setNewMoodLabel('');
+    setIsCreatingMood(false);
+  };
+
+  const handleDeleteCustomMood = (moodId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    sounds.playClick();
+    const updatedList = customMoods.filter((m) => m.id !== moodId);
+    setCustomMoods(updatedList);
+    try {
+      localStorage.setItem(CUSTOM_MOODS_STORAGE_KEY, JSON.stringify(updatedList));
+    } catch (e) {
+      console.error('Failed to update custom moods', e);
+    }
+
+    const remaining = selectedMoods.filter((m) => m.id !== moodId);
+    setSelectedMoods(remaining.length > 0 ? remaining : [MOOD_PRESETS[0]]);
+  };
+
   const handleSave = () => {
     sounds.playClick();
+    const finalMoods = selectedMoods.length > 0 ? selectedMoods : [MOOD_PRESETS[0]];
+    const updatedMoods = finalMoods.map((m) => ({
+      ...m,
+      intensity: moodIntensity,
+      note: moodNote,
+    }));
+
     onSave({
-      mood: {
-        ...selectedMood,
-        intensity: moodIntensity,
-        note: moodNote,
-      },
+      mood: updatedMoods[0],
+      moods: updatedMoods,
       currentlyListening: {
         song,
         artist,
@@ -73,6 +170,9 @@ export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
     onClose();
   };
 
+  const allMoods = [...customMoods, ...MOOD_PRESETS];
+  const primaryMood = selectedMoods[0] || MOOD_PRESETS[0];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="w-full sm:max-w-xl bg-stone-900 border-t sm:border border-stone-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom duration-200">
@@ -81,12 +181,17 @@ export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
           <div className="flex items-center gap-2">
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-              style={{ backgroundColor: themeColor || '#f59e0b' }}
+              style={{ backgroundColor: primaryMood.color || themeColor || '#f59e0b' }}
             >
               <Smile size={18} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-stone-100">Mood & Nostalgic Blog Currents</h2>
+              <h2 className="text-base font-bold text-stone-100 flex items-center gap-1.5">
+                <span>Moods</span>
+                <span className="text-xs font-normal text-stone-400">
+                  ({selectedMoods.map((m) => m.emoji).join(' ')})
+                </span>
+              </h2>
               <p className="text-[11px] text-stone-400">LiveJournal & early blog style status stamps</p>
             </div>
           </div>
@@ -106,33 +211,194 @@ export const BlogMetadataModal: React.FC<BlogMetadataModalProps> = ({
           {/* SECTION 1: MOOD TRACKING */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Smile size={14} /> Mood Tracking
-              </span>
-              <span className="text-[11px] font-mono font-bold text-stone-300">
-                {selectedMood.label} ({moodIntensity}%)
-              </span>
-            </div>
-
-            {/* Mood Grid */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-              {MOOD_PRESETS.map((m) => (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Smile size={14} /> Mood Tracking
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                  {selectedMoods.length} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  key={m.id}
+                  type="button"
                   onClick={() => {
                     sounds.playClick();
-                    setSelectedMood(m);
+                    setIsCreatingMood(!isCreatingMood);
                   }}
-                  className={`p-2 rounded-xl text-left border transition flex items-center gap-1.5 ${
-                    selectedMood.id === m.id
-                      ? 'border-amber-500 bg-amber-950/40 text-white font-bold ring-1 ring-amber-500'
-                      : 'border-stone-800 bg-stone-950 text-stone-400 hover:bg-stone-800 hover:text-stone-200'
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition ${
+                    isCreatingMood
+                      ? 'bg-stone-700 text-stone-200'
+                      : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40'
                   }`}
                 >
-                  <span className="text-base">{m.emoji}</span>
-                  <span className="text-[10px] truncate">{m.label}</span>
+                  <Plus size={11} />
+                  <span>{isCreatingMood ? 'Close Creator' : 'New Custom Mood'}</span>
                 </button>
+                <span className="text-[11px] font-mono font-bold text-stone-300">
+                  {moodIntensity}%
+                </span>
+              </div>
+            </div>
+
+            {/* Active Selected Mood Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-stone-950 p-2 rounded-xl border border-stone-800">
+              <span className="text-[10px] text-stone-400 uppercase font-semibold mr-0.5">Active Moods:</span>
+              {selectedMoods.map((m) => (
+                <div
+                  key={m.id}
+                  style={{ borderColor: m.color || '#f59e0b' }}
+                  className="flex items-center gap-1 bg-stone-900 border px-2 py-0.5 rounded-lg text-stone-200 text-[11px] font-bold shadow-xs"
+                >
+                  <span>{m.emoji}</span>
+                  <span>{m.label}</span>
+                  {selectedMoods.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleMood(m);
+                      }}
+                      title={`Deselect ${m.label}`}
+                      className="p-0.5 hover:bg-stone-800 rounded-full text-stone-400 hover:text-white ml-0.5 transition"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
               ))}
+            </div>
+
+            {/* Custom Mood Creator Drawer */}
+            {isCreatingMood && (
+              <form
+                onSubmit={handleCreateCustomMood}
+                className="bg-stone-950 p-3 rounded-2xl border border-amber-500/40 shadow-inner space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                    <Sparkles size={12} /> Design Your Custom Mood
+                  </span>
+                  <span className="text-[10px] text-stone-400">Available across all journals</span>
+                </div>
+
+                {/* Mood Name Input */}
+                <div className="flex gap-2 items-center">
+                  <div className="w-9 h-9 rounded-xl bg-stone-800 flex items-center justify-center text-xl shrink-0 border border-stone-700">
+                    {newMoodEmoji || '✨'}
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={newMoodLabel}
+                    onChange={(e) => setNewMoodLabel(e.target.value)}
+                    placeholder="Mood name (e.g. Goblin Mode, Nostalgic, Hyped)..."
+                    className="flex-1 bg-stone-900 border border-stone-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-stone-500 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* Quick Emoji Selector */}
+                <div>
+                  <span className="text-[10px] text-stone-400 block mb-1">Pick an Emoji or type your own:</span>
+                  <div className="flex flex-wrap gap-1 items-center">
+                    {EMOJI_PRESETS.map((em) => (
+                      <button
+                        key={em}
+                        type="button"
+                        onClick={() => setNewMoodEmoji(em)}
+                        className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition ${
+                          newMoodEmoji === em ? 'bg-amber-500/40 border border-amber-400 scale-110' : 'bg-stone-900 hover:bg-stone-800'
+                        }`}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={newMoodEmoji}
+                      onChange={(e) => setNewMoodEmoji(e.target.value)}
+                      placeholder="Custom"
+                      className="w-14 text-center bg-stone-900 border border-stone-700 rounded-lg py-0.5 text-xs text-stone-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Color Swatches */}
+                <div>
+                  <span className="text-[10px] text-stone-400 block mb-1">Mood Theme Color:</span>
+                  <div className="flex items-center gap-1.5">
+                    {COLOR_PRESETS.map((col) => (
+                      <button
+                        key={col}
+                        type="button"
+                        onClick={() => setNewMoodColor(col)}
+                        style={{ backgroundColor: col }}
+                        className={`w-6 h-6 rounded-full border-2 transition ${
+                          newMoodColor === col ? 'border-white scale-110 shadow-md' : 'border-stone-800 opacity-70 hover:opacity-100'
+                        }`}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={newMoodColor}
+                      onChange={(e) => setNewMoodColor(e.target.value)}
+                      className="w-6 h-6 rounded bg-transparent cursor-pointer ml-1"
+                      title="Custom color"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs flex items-center gap-1.5 transition active:scale-95 shadow-md"
+                  >
+                    <Plus size={13} />
+                    <span>Save Custom Mood</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Mood Grid (Custom Moods + Presets) */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+              {allMoods.map((m) => {
+                const isSelected = selectedMoods.some((item) => item.id === m.id);
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => handleToggleMood(m)}
+                    className={`p-2 rounded-xl text-left border transition flex items-center justify-between gap-1 cursor-pointer group relative ${
+                      isSelected
+                        ? 'border-amber-500 bg-amber-950/50 text-white font-bold ring-1 ring-amber-500'
+                        : 'border-stone-800 bg-stone-950 text-stone-400 hover:bg-stone-800 hover:text-stone-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="text-base shrink-0">{m.emoji}</span>
+                      <span className="text-[10px] truncate">{m.label}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isSelected && <Check size={12} className="text-amber-400" />}
+
+                      {/* Custom mood badge / delete button */}
+                      {m.isCustom && (
+                        <button
+                          type="button"
+                          title="Delete custom mood"
+                          onClick={(e) => handleDeleteCustomMood(m.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-rose-400 hover:bg-rose-950/60 transition"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Intensity Slider */}

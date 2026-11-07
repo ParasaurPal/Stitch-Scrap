@@ -117,8 +117,13 @@ export const StickerModal: React.FC<StickerModalProps> = ({
         createdAt: new Date().toISOString(),
       });
     } catch (err: any) {
-      console.error(err);
-      setGenError(err.message || 'Error creating sticker');
+      console.warn('Sticker generation error:', err?.message);
+      const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
+      setGenError(
+        isQuota
+          ? 'Daily free tier limit reached. You can pick from our 60+ curated scrapbook stickers, or upload your own photos with Smart Edge Cutout!'
+          : (err.message || 'Error creating sticker')
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -185,8 +190,13 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       setProcessedStickerImage(data.imageUrl);
       sounds.playStickerPop();
     } catch (err: any) {
-      console.error(err);
-      setEdgeError(err.message || 'Gemini edge detection error, falling back to smart edge detection');
+      console.warn('Neural edge detection notice:', err?.message);
+      const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
+      setEdgeError(
+        isQuota
+          ? 'Free tier quota reached for neural model. High-precision smart edge detection has seamlessly extracted your sticker locally!'
+          : (err.message || 'Gemini edge detection notice: falling back to smart edge detection')
+      );
       // Fallback to local
       await triggerEdgeDetection(rawUploadedImage, edgeThreshold, borderThickness);
     } finally {

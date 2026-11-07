@@ -134,7 +134,13 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error('Sticker generation endpoint error:', err);
-      return res.status(500).json({ error: err?.message || 'Server error generating sticker' });
+      const isQuota = err?.status === 429 || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.message?.includes('quota');
+      return res.status(isQuota ? 429 : 500).json({
+        error: isQuota
+          ? 'Free tier quota reached for Gemini Image model. Please select a billing-enabled API key in Settings > Secrets, or use our curated stock sticker library and uploaded photos.'
+          : err?.message || 'Server error generating sticker',
+        isQuotaError: isQuota,
+      });
     }
   });
 
@@ -188,7 +194,13 @@ async function startServer() {
       }
     } catch (err: any) {
       console.error('AI Edge detection endpoint error:', err);
-      return res.status(500).json({ error: err?.message || 'Server error during edge detection' });
+      const isQuota = err?.status === 429 || err?.message?.includes('RESOURCE_EXHAUSTED') || err?.message?.includes('quota');
+      return res.status(isQuota ? 429 : 500).json({
+        error: isQuota
+          ? 'Neural edge detection quota reached on free tier. Using automatic high-precision smart edge detection locally.'
+          : err?.message || 'Server error during edge detection',
+        isQuotaError: isQuota,
+      });
     }
   });
 

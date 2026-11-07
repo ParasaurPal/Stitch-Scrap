@@ -48,9 +48,9 @@ jobs:
       - name: Locate release APK
         id: apk
         run: |
-          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          echo "apk_path=native-android/$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "Found APK: native-android/$APK_PATH"
+          APK_PATH=$(find native-android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $APK_PATH"
         working-directory: .
 
       - name: Upload APK artifact

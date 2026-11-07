@@ -236,8 +236,15 @@ fun EditorScreen(
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val context = LocalContext.current
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
-        if (uri != null) runCatching { exportScrapbookPdf(context, uri, draft) }
-            .onFailure { android.util.Log.e("StitchScrap", "PDF export failed", it) }
+        if (uri != null) {
+            runCatching { exportScrapbookPdf(context, uri, draft) }
+                .onSuccess { android.widget.Toast.makeText(context, "Scrapbook PDF saved", android.widget.Toast.LENGTH_LONG).show() }
+                .onFailure {
+                    android.util.Log.e("StitchScrap", "PDF export failed", it)
+                    android.widget.Toast.makeText(context, "Could not export PDF: ${it.message ?: "unknown error"}",
+                        android.widget.Toast.LENGTH_LONG).show()
+                }
+        }
     }
     val textColors = listOf("#292524", "#7F1D1D", "#9D174D", "#6B21A8", "#1D4ED8", "#166534", "#FFFFFF")
     val papers = listOf(

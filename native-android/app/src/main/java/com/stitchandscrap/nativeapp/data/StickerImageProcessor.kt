@@ -47,12 +47,13 @@ suspend fun createDieCutSticker(
         val scale = min(1f, 1000f / maxDimension)
         val width = (original.width * scale).toInt().coerceAtLeast(1)
         val height = (original.height * scale).toInt().coerceAtLeast(1)
-        scaled = if (width != original.width || height != original.height)
+        val working = if (width != original.width || height != original.height)
             Bitmap.createScaledBitmap(original, width, height, true) else original
+        scaled = working
 
         val count = width * height
         val pixels = IntArray(count)
-        scaled.getPixels(pixels, 0, width, 0, 0, width, height)
+        working.getPixels(pixels, 0, width, 0, 0, width, height)
 
         val corners = intArrayOf(
             pixels[0], pixels[width - 1],

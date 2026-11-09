@@ -192,6 +192,10 @@ jobs:
           echo "Launcher icon resources and manifest references verified."
       - name: Build installable release APK
         working-directory: android
+        env:
+          STITCH_STORE_PASSWORD: ${{ secrets.STITCH_STORE_PASSWORD }}
+          STITCH_KEY_ALIAS: ${{ secrets.STITCH_KEY_ALIAS }}
+          STITCH_KEY_PASSWORD: ${{ secrets.STITCH_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon assembleRelease

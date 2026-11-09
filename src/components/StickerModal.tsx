@@ -123,7 +123,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED');
       setGenError(
         isQuota
-          ? 'Daily free tier limit reached. You can pick from our 60+ curated scrapbook stickers, or upload your own photos with Smart Edge Cutout!'
+          ? 'Daily free tier limit reached. You can pick from our 60+ curated scrapbook stickers, or upload your own photos with Guided Subject Cutout!'
           : (err.message || 'Error creating sticker')
       );
     } finally {
@@ -642,7 +642,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
 
               {rawUploadedImage && (
                 <div className="p-3.5 bg-stone-950 rounded-2xl border border-stone-800 space-y-3.5">
-                  {/* Mode Toggle: AI Edge Cutout vs Framed Photo */}
+                  {/* Mode Toggle: Subject Edge Cutout vs Framed Photo */}
                   <div className="flex items-center justify-between bg-stone-900 p-1.5 rounded-xl text-xs">
                     <button
                       onClick={async () => {
@@ -680,7 +680,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                     <div className="space-y-3 bg-stone-900/60 p-3 rounded-xl border border-stone-800">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-pink-400 flex items-center gap-1.5">
-                          <Scissors size={14} /> AI Edge Detection Settings
+                          <Scissors size={14} /> Subject Edge Detection Settings
                         </span>
                         {isProcessingEdge && (
                           <span className="text-[10px] text-pink-300 flex items-center gap-1">
@@ -707,7 +707,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                       {/* Sensitivity Threshold Slider */}
                       <div>
                         <div className="flex justify-between text-[11px] text-stone-300 mb-1">
-                          <span>Edge Detection Sensitivity:</span>
+                          <span>Subject Edge Sensitivity:</span>
                           <span className="font-mono text-pink-400">{edgeThreshold}%</span>
                         </div>
                         <input

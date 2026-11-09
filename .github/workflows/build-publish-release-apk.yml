@@ -96,7 +96,7 @@ jobs:
           if not marker:
               raise SystemExit("Could not find Android release build type to configure APK signing")
           insert_at = marker.end()
-          gradle = gradle[:insert_at] + "\\n            signingConfig signingConfigs.debug" + gradle[insert_at:]
+          gradle = gradle[:insert_at] + "\n            signingConfig signingConfigs.debug" + gradle[insert_at:]
           gradle_file.write_text(gradle)
           print(f"Configured {main_activity} for immersive full-screen mode and debug-signed release APK")
           PY

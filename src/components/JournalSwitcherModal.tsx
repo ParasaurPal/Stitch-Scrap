@@ -51,6 +51,7 @@ export const JournalSwitcherModal: React.FC<JournalSwitcherModalProps> = ({
   const [description, setDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState('#ec4899');
   const [selectedIcon, setSelectedIcon] = useState('heart');
+  const [selectedEmoji, setSelectedEmoji] = useState('🌸');
   const [selectedPaper, setSelectedPaper] = useState<PaperTextureType>('lined');
 
   // Filter journals by archive status
@@ -146,7 +147,7 @@ export const JournalSwitcherModal: React.FC<JournalSwitcherModalProps> = ({
       themeColor: selectedColor,
       icon: selectedIcon,
       defaultPaper: selectedPaper,
-      coverPattern: iconObj.icon,
+      coverPattern: selectedEmoji.trim() || '📖',
       isArchived: false,
     });
 
@@ -570,6 +571,27 @@ export const JournalSwitcherModal: React.FC<JournalSwitcherModalProps> = ({
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Custom cover emoji: accept any emoji or symbol entered/pasted by the user */}
+              <div>
+                <label className="text-[11px] font-semibold text-stone-300 block mb-1.5">
+                  Cover Emoji (use any emoji)
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-stone-800 text-2xl border border-stone-700">
+                    {selectedEmoji || '📖'}
+                  </div>
+                  <input
+                    type="text"
+                    value={selectedEmoji}
+                    onChange={(e) => setSelectedEmoji(e.target.value)}
+                    placeholder="Paste any emoji here"
+                    aria-label="Custom journal cover emoji"
+                    className="min-w-0 flex-1 bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-lg text-stone-100 focus:outline-none focus:border-pink-500"
+                  />
+                </div>
+                <p className="mt-1 text-[10px] text-stone-500">You can use any emoji, including combinations and skin-tone variations.</p>
               </div>
 
               {/* Default Paper Texture */}

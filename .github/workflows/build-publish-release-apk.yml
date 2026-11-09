@@ -172,8 +172,8 @@ jobs:
               gradle = gradle.replace("android {", "android {" + signing, 1)
           gradle = re.sub(r"versionCode\s+\d+", f"versionCode {os.environ['BUILD_NUMBER']}", gradle, count=1)
           gradle, release_match_count = re.subn(r"(buildTypes\s*\{\s*release\s*\{)", lambda match: match.group(1) + "\n            signingConfig signingConfigs.release", gradle, count=1)
-if release_match_count != 1:
-    raise SystemExit("Could not uniquely locate the release build type for signing configuration")
+          if release_match_count != 1:
+              raise SystemExit("Could not uniquely locate the release build type for signing configuration")
           if "signingConfig signingConfigs.release" not in gradle:
               raise SystemExit("Could not configure stable release signing")
           gradle_file.write_text(gradle)

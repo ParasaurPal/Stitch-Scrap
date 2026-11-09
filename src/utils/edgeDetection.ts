@@ -1,14 +1,39 @@
 /**
- * Client-side Smart Edge Detection & Background Removal for Custom Stickers
- * Uses corner-sampled flood fill, color distance delta, and dilation for smooth die-cut sticker borders.
+ * Guided smart cutout for uploaded scrapbook photos.
+ * Uses a user-drawn lasso (when supplied) plus multi-point, boundary-seeded
+ * flood fill instead of guessing the background from four corner pixels.
  */
 
+export interface EdgeDetectionPoint {
+  x: number;
+  y: number;
+}
+
 export interface EdgeDetectionOptions {
-  threshold: number; // 0 to 100 sensitivity
-  smoothing: number; // edge blur / feathering
-  borderWidth: number; // die-cut white stroke width
-  borderColor: string; // e.g. '#ffffff'
+  threshold: number;
+  smoothing: number;
+  borderWidth: number;
+  borderColor: string;
   addShadow: boolean;
+  selectionPoints?: EdgeDetectionPoint[];
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  values.sort((a, b) => a - b);
+  return values[Math.floor(values.length / 2)];
+}
+
+function pointInPolygon(x: number, y: number, polygon: EdgeDetectionPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    const crosses = (a.y > y) !== (b.y > y) &&
+      x < ((b.x - a.x) * (y - a.y)) / ((b.y - a.y) || 0.000001) + a.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
 }
 
 export async function processImageEdgeDetection(
@@ -21,121 +46,164 @@ export async function processImageEdgeDetection(
     addShadow: true,
   }
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
         const width = img.naturalWidth || img.width;
         const height = img.naturalHeight || img.height;
-
-        // Downscale very large images to max 1000px dimension for rapid processing
-        const maxDim = 1000;
-        const scale = Math.min(1, maxDim / Math.max(width, height));
-        const targetW = Math.round(width * scale);
-        const targetH = Math.round(height * scale);
-
+        const scale = Math.min(1, 1200 / Math.max(width, height));
+        const targetW = Math.max(1, Math.round(width * scale));
+        const targetH = Math.max(1, Math.round(height * scale));
         const canvas = document.createElement('canvas');
         canvas.width = targetW;
         canvas.height = targetH;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return resolve(imageSrc);
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(imageSrc);
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+
+        const imageData = ctx.getImageData(0, 0, targetW, targetH);
+        const pixels = imageData.data;
+        const total = targetW * targetH;
+        const polygon = options.selectionPoints && options.selectionPoints.length >= 8
+          ? options.selectionPoints
+          : null;
+        const inside = new Uint8Array(total);
+
+        if (polygon) {
+          for (let y = 0; y < targetH; y++) {
+            for (let x = 0; x < targetW; x++) {
+              inside[y * targetW + x] = pointInPolygon((x + 0.5) / targetW, (y + 0.5) / targetH, polygon) ? 1 : 0;
+            }
+          }
+        } else {
+          inside.fill(1);
         }
 
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-        const imgData = ctx.getImageData(0, 0, targetW, targetH);
-        const data = imgData.data;
+        // Estimate the background from many points along the image edge or the
+        // user's lasso line, making the result less sensitive to a bad corner.
+        const samples: number[][] = [];
+        const sampleAt = (x: number, y: number) => {
+          const px = Math.max(0, Math.min(targetW - 1, Math.round(x)));
+          const py = Math.max(0, Math.min(targetH - 1, Math.round(y)));
+          const index = (py * targetW + px) * 4;
+          if (pixels[index + 3] > 20 && inside[py * targetW + px]) {
+            samples.push([pixels[index], pixels[index + 1], pixels[index + 2]]);
+          }
+        };
 
-        // Sample corner pixels to estimate background color
-        const cornerIndices = [
-          0, // top-left
-          (targetW - 1) * 4, // top-right
-          ((targetH - 1) * targetW) * 4, // bottom-left
-          ((targetH - 1) * targetW + (targetW - 1)) * 4, // bottom-right
-        ];
-
-        let bgR = 0, bgG = 0, bgB = 0;
-        cornerIndices.forEach((idx) => {
-          bgR += data[idx];
-          bgG += data[idx + 1];
-          bgB += data[idx + 2];
-        });
-        bgR /= 4;
-        bgG /= 4;
-        bgB /= 4;
-
-        // Color distance threshold (0 - 441)
-        const maxDist = Math.sqrt(255 * 255 * 3);
-        const distThreshold = (options.threshold / 100) * maxDist;
-
-        // Alpha mask array (1 = foreground, 0 = background)
-        const mask = new Uint8Array(targetW * targetH);
-
-        for (let y = 0; y < targetH; y++) {
-          for (let x = 0; x < targetW; x++) {
-            const idx = (y * targetW + x) * 4;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
-            const a = data[idx + 3];
-
-            if (a < 20) {
-              mask[y * targetW + x] = 0;
-              data[idx + 3] = 0;
-              continue;
+        if (polygon) {
+          for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i];
+            const b = polygon[(i + 1) % polygon.length];
+            const ax = a.x * targetW, ay = a.y * targetH;
+            const bx = b.x * targetW, by = b.y * targetH;
+            const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 3));
+            for (let step = 0; step <= steps; step++) {
+              const t = step / steps;
+              sampleAt(ax + (bx - ax) * t, ay + (by - ay) * t);
             }
-
-            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-            if (dist < distThreshold) {
-              mask[y * targetW + x] = 0;
-              data[idx + 3] = 0;
-            } else {
-              mask[y * targetW + x] = 1;
-            }
+          }
+        } else {
+          const stride = Math.max(1, Math.floor(Math.min(targetW, targetH) / 180));
+          for (let x = 0; x < targetW; x += stride) {
+            sampleAt(x, 0); sampleAt(x, targetH - 1);
+          }
+          for (let y = 0; y < targetH; y += stride) {
+            sampleAt(0, y); sampleAt(targetW - 1, y);
           }
         }
 
-        // Put modified transparent pixels back
-        ctx.putImageData(imgData, 0, 0);
+        const bg = [
+          median(samples.map((sample) => sample[0])),
+          median(samples.map((sample) => sample[1])),
+          median(samples.map((sample) => sample[2])),
+        ];
+        const threshold = Math.max(12, (options.threshold / 100) * Math.sqrt(255 * 255 * 3));
+        const maxDistance = threshold * (polygon ? 1.45 : 1.25);
 
-        // If die-cut border is requested, create an expanded silhouette
+        // Seed a flood fill along the lasso/image boundary. Only background
+        // connected to that boundary is removed, so enclosed subject details
+        // are not erased just because they share a color with the backdrop.
+        const visited = new Uint8Array(total);
+        const queue = new Int32Array(total);
+        let head = 0;
+        let tail = 0;
+        const enqueue = (index: number) => {
+          if (index < 0 || index >= total || visited[index] || !inside[index]) return;
+          const p = index * 4;
+          if (pixels[p + 3] < 20) { visited[index] = 1; return; }
+          const distance = Math.hypot(pixels[p] - bg[0], pixels[p + 1] - bg[1], pixels[p + 2] - bg[2]);
+          if (distance > maxDistance) return;
+          visited[index] = 1;
+          queue[tail++] = index;
+        };
+
+        if (polygon) {
+          for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+            const ax = a.x * targetW, ay = a.y * targetH;
+            const bx = b.x * targetW, by = b.y * targetH;
+            const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
+            for (let step = 0; step <= steps; step++) {
+              const t = step / steps;
+              enqueue(Math.round(ay + (by - ay) * t) * targetW + Math.round(ax + (bx - ax) * t));
+            }
+          }
+        } else {
+          for (let x = 0; x < targetW; x++) { enqueue(x); enqueue((targetH - 1) * targetW + x); }
+          for (let y = 0; y < targetH; y++) { enqueue(y * targetW); enqueue(y * targetW + targetW - 1); }
+        }
+
+        while (head < tail) {
+          const index = queue[head++];
+          const x = index % targetW;
+          const y = Math.floor(index / targetW);
+          const p = index * 4;
+          pixels[p + 3] = 0;
+          if (x > 0) enqueue(index - 1);
+          if (x + 1 < targetW) enqueue(index + 1);
+          if (y > 0) enqueue(index - targetW);
+          if (y + 1 < targetH) enqueue(index + targetW);
+        }
+
+        // Everything outside a manually drawn loop is always transparent.
+        if (polygon) {
+          for (let i = 0; i < total; i++) {
+            if (!inside[i]) pixels[i * 4 + 3] = 0;
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
         if (options.borderWidth > 0) {
           const borderCanvas = document.createElement('canvas');
-          const padding = options.borderWidth * 2 + 16;
+          const padding = Math.ceil(options.borderWidth * 2 + 16);
           borderCanvas.width = targetW + padding * 2;
           borderCanvas.height = targetH + padding * 2;
           const bCtx = borderCanvas.getContext('2d');
           if (bCtx) {
-            // Draw smooth thick white contour around subject
             bCtx.save();
             bCtx.shadowColor = 'rgba(0, 0, 0, 0.22)';
             bCtx.shadowBlur = options.addShadow ? 10 : 0;
             bCtx.shadowOffsetY = options.addShadow ? 5 : 0;
-
-            // Multiple offset draws to create smooth die-cut border
-            const r = options.borderWidth;
-            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
-              const dx = Math.cos(angle) * r;
-              const dy = Math.sin(angle) * r;
-              bCtx.drawImage(canvas, padding + dx, padding + dy);
+            const radius = options.borderWidth;
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 24) {
+              bCtx.drawImage(canvas, padding + Math.cos(angle) * radius, padding + Math.sin(angle) * radius);
             }
-
-            // Fill color of border
             bCtx.globalCompositeOperation = 'source-in';
             bCtx.fillStyle = options.borderColor || '#ffffff';
             bCtx.fillRect(0, 0, borderCanvas.width, borderCanvas.height);
             bCtx.restore();
-
-            // Draw original cutout on top
             bCtx.drawImage(canvas, padding, padding);
             return resolve(borderCanvas.toDataURL('image/png'));
           }
         }
 
         resolve(canvas.toDataURL('image/png'));
-      } catch (err) {
-        console.error('Edge detection failed:', err);
+      } catch (error) {
+        console.error('Edge detection failed:', error);
         resolve(imageSrc);
       }
     };

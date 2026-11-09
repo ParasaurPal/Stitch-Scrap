@@ -13,7 +13,7 @@ import { BlogMetadataModal } from './components/BlogMetadataModal';
 import { JournalSwitcherModal } from './components/JournalSwitcherModal';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { ExportModal } from './components/ExportModal';
-import { CloudCheck, Cloud, Sparkles } from 'lucide-react';
+import { CloudCheck, Cloud, Sparkles, Home } from 'lucide-react';
 import { sounds } from './utils/sound';
 
 export default function App() {
@@ -383,6 +383,15 @@ export default function App() {
           <>
         {/* Top App Header with Journal Switcher Pill & Cloud Sync Badge */}
         <div className="px-4 py-2 bg-stone-900 border-b border-stone-800/80 flex items-center justify-between text-xs select-none z-30">
+          <button
+            type="button"
+            onClick={() => setIsHome(true)}
+            className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-stone-300 hover:bg-stone-800"
+            aria-label="Back to journal home"
+          >
+            <Home size={15} />
+            <span>Home</span>
+          </button>
           {/* Journal Switcher Pill */}
           <button
             onClick={() => {

@@ -92,7 +92,7 @@ jobs:
 
           gradle_file = Path("android/app/build.gradle")
           gradle = gradle_file.read_text()
-          marker = re.search(r"(buildTypes\\s*\\{\\s*release\\s*\\{)", gradle)
+          marker = re.search(r"(buildTypes\s*\{\s*release\s*\{)", gradle)
           if not marker:
               raise SystemExit("Could not find Android release build type to configure APK signing")
           insert_at = marker.end()

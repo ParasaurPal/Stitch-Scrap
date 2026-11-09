@@ -43,6 +43,17 @@ jobs:
       - name: Sync full web application into Android project
         run: npx cap sync android
 
+      - name: Increase Gradle distribution download timeout
+        run: |
+          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
+          test -f "$WRAPPER"
+          if grep -q '^networkTimeout=' "$WRAPPER"; then
+            sed -i 's/^networkTimeout=.*/networkTimeout=120000/' "$WRAPPER"
+          else
+            printf '\nnetworkTimeout=120000\n' >> "$WRAPPER"
+          fi
+          echo "Gradle wrapper download timeout set to 120 seconds."
+
       - name: Apply Stitch & Scrap launcher artwork
         shell: bash
         run: |

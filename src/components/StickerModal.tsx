@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Image, Upload, Wand2, Check, Loader2, Bookmark, Scissors, Sliders, RefreshCw, Layers } from 'lucide-react';
 import { STOCK_STICKERS, StockSticker } from '../data/stickers';
-import { processImageEdgeDetection } from '../utils/edgeDetection';
+import { processImageEdgeDetection, EdgeDetectionPoint } from '../utils/edgeDetection';
+import { SubjectLassoSelector } from './SubjectLassoSelector';
 import { StickerTexture, StickerBorderPattern } from '../types/journal';
 import { sounds } from '../utils/sound';
 import { apiUrl } from '../lib/apiBase';
@@ -59,6 +60,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
   const [canvasBorderPattern, setCanvasBorderPattern] = useState<StickerBorderPattern>('solid');
   const [canvasBorderColor, setCanvasBorderColor] = useState<string>('#ffffff');
   const [edgeError, setEdgeError] = useState<string | null>(null);
+  const [lassoPoints, setLassoPoints] = useState<EdgeDetectionPoint[]>([]);
 
   // Category filter for stock
   const [stockCategory, setStockCategory] = useState<string>('all');
@@ -130,7 +132,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
   };
 
   // Process edge detection on upload
-  const triggerEdgeDetection = async (imgSrc: string, threshold: number, borderW: number) => {
+  const triggerEdgeDetection = async (imgSrc: string, threshold: number, borderW: number, selectionPoints: EdgeDetectionPoint[] = lassoPoints) => {
     setIsProcessingEdge(true);
     setEdgeError(null);
     try {
@@ -140,6 +142,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
         borderWidth: borderW,
         borderColor: '#ffffff',
         addShadow: true,
+        selectionPoints: selectionPoints.length >= 8 ? selectionPoints : undefined,
       });
       setProcessedStickerImage(processed);
     } catch (err: any) {
@@ -157,6 +160,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
       reader.onload = async (event) => {
         const raw = event.target?.result as string;
         setRawUploadedImage(raw);
+        setLassoPoints([]);
         sounds.playClick();
         if (useEdgeDetection) {
           await triggerEdgeDetection(raw, edgeThreshold, borderThickness);
@@ -685,6 +689,21 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                         )}
                       </div>
 
+                      <SubjectLassoSelector
+                        imageSrc={rawUploadedImage}
+                        onSelectionChange={setLassoPoints}
+                      />
+                      {lassoPoints.length >= 8 && (
+                        <button
+                          type="button"
+                          onClick={() => triggerEdgeDetection(rawUploadedImage, edgeThreshold, borderThickness, lassoPoints)}
+                          disabled={isProcessingEdge}
+                          className="w-full py-2 rounded-xl bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-2"
+                        >
+                          <Scissors size={14} /> Apply guided subject cutout
+                        </button>
+                      )}
+
                       {/* Sensitivity Threshold Slider */}
                       <div>
                         <div className="flex justify-between text-[11px] text-stone-300 mb-1">
@@ -699,7 +718,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                           onChange={async (e) => {
                             const val = Number(e.target.value);
                             setEdgeThreshold(val);
-                            await triggerEdgeDetection(rawUploadedImage, val, borderThickness);
+                            await triggerEdgeDetection(rawUploadedImage, val, borderThickness, lassoPoints);
                           }}
                           className="w-full accent-pink-500 cursor-pointer"
                         />
@@ -719,7 +738,7 @@ export const StickerModal: React.FC<StickerModalProps> = ({
                           onChange={async (e) => {
                             const val = Number(e.target.value);
                             setBorderThickness(val);
-                            await triggerEdgeDetection(rawUploadedImage, edgeThreshold, val);
+                            await triggerEdgeDetection(rawUploadedImage, edgeThreshold, val, lassoPoints);
                           }}
                           className="w-full accent-purple-500 cursor-pointer"
                         />

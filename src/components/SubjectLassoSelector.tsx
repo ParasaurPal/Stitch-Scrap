@@ -43,10 +43,7 @@ export const SubjectLassoSelector: React.FC<SubjectLassoSelectorProps> = ({ imag
   const finish = () => {
     if (!drawing) return;
     setDrawing(false);
-    setPoints((current) => {
-      if (current.length >= 8) onSelectionChange(current);
-      return current;
-    });
+    if (points.length >= 8) onSelectionChange(points);
   };
 
   const clear = () => {

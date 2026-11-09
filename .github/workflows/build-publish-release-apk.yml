@@ -43,16 +43,38 @@ jobs:
       - name: Sync full web application into Android project
         run: npx cap sync android
 
-      - name: Increase Gradle distribution download timeout
+      - name: Configure reliable Gradle distribution download
         run: |
-          WRAPPER="android/gradle/wrapper/gradle-wrapper.properties"
-          test -f "$WRAPPER"
-          if grep -q '^networkTimeout=' "$WRAPPER"; then
-            sed -i 's/^networkTimeout=.*/networkTimeout=120000/' "$WRAPPER"
-          else
-            printf '\nnetworkTimeout=120000\n' >> "$WRAPPER"
-          fi
-          echo "Gradle wrapper download timeout set to 120 seconds."
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          if not wrapper.is_file():
+              raise SystemExit("Gradle wrapper properties were not generated")
+          content = wrapper.read_text()
+          content = content.replace(
+              "https://services.gradle.org/distributions/",
+              "https://downloads.gradle.org/distributions/"
+          )
+          content = re.sub(r"-all\\.zip", "-bin.zip", content)
+          if "networkTimeout=" in content:
+              content = re.sub(r"^networkTimeout=.*$", "networkTimeout=120000", content, flags=re.M)
+          else:
+              content += "\\nnetworkTimeout=120000\\n"
+          wrapper.write_text(content)
+          print("Configured direct Gradle downloads with a 120-second timeout:")
+          print(next(line for line in content.splitlines() if line.startswith("distributionUrl=")))
+          PY
+
+      - name: Cache Gradle wrapper distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-wrapper-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-wrapper-${{ runner.os }}-
+
 
       - name: Apply Stitch & Scrap launcher artwork
         shell: bash
@@ -208,9 +230,21 @@ jobs:
           STITCH_KEY_ALIAS: ${{ secrets.STITCH_KEY_ALIAS }}
           STITCH_KEY_PASSWORD: ${{ secrets.STITCH_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew --no-daemon assembleRelease
-          rm -rf app/keystore
+          trap 'rm -rf app/keystore' EXIT
+          for attempt in 1 2 3; do
+            echo "Gradle release build attempt ${attempt}/3"
+            if ./gradlew --no-daemon --stacktrace assembleRelease; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "Gradle build failed; waiting 20 seconds before retry."
+              sleep 20
+            fi
+          done
+          echo "::error::Gradle release build failed after three attempts."
+          exit 1
 
       - name: Name APK after the application
         run: |

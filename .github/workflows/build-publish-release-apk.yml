@@ -97,18 +97,31 @@ jobs:
           print("Applied uploaded Stitch & Scrap artwork to legacy and adaptive Android launcher icons.")
           PY
 
-      - name: Configure immersive full-screen Android activity and signed release
+      - name: Configure immersive mode and stable release signing
         shell: bash
+        env:
+          STITCH_KEYSTORE_BASE64: ${{ secrets.STITCH_KEYSTORE_BASE64 }}
+          STITCH_STORE_PASSWORD: ${{ secrets.STITCH_STORE_PASSWORD }}
+          STITCH_KEY_ALIAS: ${{ secrets.STITCH_KEY_ALIAS }}
+          STITCH_KEY_PASSWORD: ${{ secrets.STITCH_KEY_PASSWORD }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
+          set -euo pipefail
+          if [[ -z "${STITCH_KEYSTORE_BASE64:-}" || -z "${STITCH_STORE_PASSWORD:-}" || -z "${STITCH_KEY_ALIAS:-}" || -z "${STITCH_KEY_PASSWORD:-}" ]]; then
+            echo "::error::Add the four stable Android signing secrets listed in the repository instructions before building."
+            exit 1
+          fi
+          mkdir -p android/keystore
+          echo "$STITCH_KEYSTORE_BASE64" | base64 --decode > android/keystore/stitch-release.jks
           python3 <<'PY'
           from pathlib import Path
-          import re
+          import os, re
 
           java_files = list(Path("android/app/src/main/java").rglob("MainActivity.java"))
           if not java_files:
               raise SystemExit("Capacitor MainActivity.java was not generated")
           main_activity = java_files[0]
-          package = re.search(r"^package\s+([\w.]+);", main_activity.read_text(), re.M)
+          package = re.search(r"^package\\s+([\\w.]+);", main_activity.read_text(), re.M)
           if not package:
               raise SystemExit("Could not determine generated Android package name")
           main_activity.write_text(f"""package {package.group(1)};
@@ -145,15 +158,37 @@ jobs:
 
           gradle_file = Path("android/app/build.gradle")
           gradle = gradle_file.read_text()
-          marker = re.search(r"(buildTypes\s*\{\s*release\s*\{)", gradle)
-          if not marker:
-              raise SystemExit("Could not find Android release build type to configure APK signing")
-          insert_at = marker.end()
-          gradle = gradle[:insert_at] + "\n            signingConfig signingConfigs.debug" + gradle[insert_at:]
+          signing = """
+              signingConfigs {
+                  release {
+                      storeFile file("keystore/stitch-release.jks")
+                      storePassword System.getenv("STITCH_STORE_PASSWORD")
+                      keyAlias System.getenv("STITCH_KEY_ALIAS")
+                      keyPassword System.getenv("STITCH_KEY_PASSWORD")
+                  }
+              }
+          """
+          if "signingConfigs {" not in gradle:
+              gradle = gradle.replace("android {", "android {" + signing, 1)
+          gradle = re.sub(r"versionCode\\s+\\d+", f"versionCode {os.environ['BUILD_NUMBER']}", gradle, count=1)
+          gradle = re.sub(r"(buildTypes\\s*\\{\\s*release\\s*\\{)", r"\\1\\n            signingConfig signingConfigs.release", gradle, count=1)
+          if "signingConfig signingConfigs.release" not in gradle:
+              raise SystemExit("Could not configure stable release signing")
           gradle_file.write_text(gradle)
-          print(f"Configured {main_activity} for immersive full-screen mode and debug-signed release APK")
+          print(f"Configured {main_activity}, stable release signing, and versionCode {os.environ['BUILD_NUMBER']}")
           PY
+          rm -rf android/keystore
 
+      - name: Verify Android package and launcher resources
+        working-directory: android
+        run: |
+          APK_PATH="app/src/main/AndroidManifest.xml"
+          grep -q 'android:icon="@mipmap/ic_launcher"' "$APK_PATH"
+          test -f app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          test -f app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          test -f app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          test -f app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+          echo "Launcher icon resources and manifest references verified."
       - name: Build installable release APK
         working-directory: android
         run: |

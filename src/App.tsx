@@ -6,6 +6,7 @@ import { INITIAL_JOURNALS, INITIAL_ENTRIES, MOOD_PRESETS } from './data/defaultD
 import { AndroidStatusBar } from './components/AndroidStatusBar';
 import { AndroidNavBar } from './components/AndroidNavBar';
 import { ScrapbookCanvas } from './components/ScrapbookCanvas';
+import { HomeDashboard } from './components/HomeDashboard';
 import { StickerModal } from './components/StickerModal';
 import { WashiTapeModal } from './components/WashiTapeModal';
 import { BlogMetadataModal } from './components/BlogMetadataModal';
@@ -85,6 +86,7 @@ export default function App() {
 
   // Layout Viewport mode: Phone Frame vs Immersive
   const [isPhoneFrame, setIsPhoneFrame] = useState<boolean>(true);
+  const [isHome, setIsHome] = useState<boolean>(true);
 
   // Modals & Tools
   const [isDispenserMode, setIsDispenserMode] = useState<boolean>(false);
@@ -358,6 +360,27 @@ export default function App() {
           themeColor={currentJournal.themeColor}
         />
 
+        {isHome ? (
+          <HomeDashboard
+            journals={journals}
+            entries={entries}
+            onOpenJournal={(id) => {
+              setCurrentJournalId(id);
+              setCurrentEntryIndex(0);
+              setIsHome(false);
+            }}
+            onNewJournal={() => setIsJournalsOpen(true)}
+            onDeleteJournal={(id) => {
+              setJournals((prev) => prev.filter((journal) => journal.id !== id));
+              if (currentJournalId === id) {
+                const remaining = journals.filter((journal) => journal.id !== id);
+                if (remaining.length > 0) setCurrentJournalId(remaining[0].id);
+              }
+            }}
+            onOpenBackup={() => setIsCloudSyncOpen(true)}
+          />
+        ) : (
+          <>
         {/* Top App Header with Journal Switcher Pill & Cloud Sync Badge */}
         <div className="px-4 py-2 bg-stone-900 border-b border-stone-800/80 flex items-center justify-between text-xs select-none z-30">
           {/* Journal Switcher Pill */}
@@ -433,6 +456,8 @@ export default function App() {
             setIsDispenserMode((prev) => !prev);
           }}
         />
+          </>
+        )}
       </div>
 
       {/* Modals */}
@@ -444,6 +469,7 @@ export default function App() {
         onSelectJournal={(id) => {
           setCurrentJournalId(id);
           setCurrentEntryIndex(0);
+          setIsHome(false);
         }}
         onCreateJournal={(newJ) => {
           setJournals((prev) => [...prev, { ...newJ, createdAt: new Date().toISOString() }]);

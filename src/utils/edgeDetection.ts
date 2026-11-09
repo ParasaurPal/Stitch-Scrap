@@ -100,7 +100,9 @@ export async function processImageEdgeDetection(
 
         // Thin the palette to evenly distributed samples for fast comparisons.
         const palette = samples.filter((_, i) => i % Math.max(1, Math.floor(samples.length / 80)) === 0).slice(0, 100);
-        const threshold = Math.max(14, (options.threshold / 100) * 255 * 1.35);
+        // Keep the color match deliberately conservative. The previous multiplier made
+        // ordinary subject colors look like background and caused large areas to vanish.
+        const threshold = Math.max(18, Math.min(58, options.threshold * 1.35));
         const colorDistance = (index: number) => {
           const p = index * 4;
           let best = Infinity;
@@ -126,7 +128,8 @@ export async function processImageEdgeDetection(
           const gy = -luminance[i-w-1] - 2*luminance[i-w] - luminance[i-w+1] + luminance[i+w-1] + 2*luminance[i+w] + luminance[i+w+1];
           gradient[i] = Math.hypot(gx, gy) / 4;
         }
-        const edgeBarrier = Math.max(16, threshold * .52);
+        // A stronger barrier protects real subject detail, texture, and internal color changes.
+        const edgeBarrier = Math.max(34, threshold * .9);
         const visited = new Uint8Array(total);
         const removed = new Uint8Array(total);
         const queue = new Int32Array(total);
@@ -165,10 +168,26 @@ export async function processImageEdgeDetection(
           }
         }
 
-        // Pixels outside the lasso are always transparent; connected
-        // background inside it is removed, leaving the subject silhouette.
+        // Safety check: if automatic removal would erase a substantial part of the
+        // user's selected region, reject that removal pass. A lasso-only crop is
+        // preferable to destroying the subject. This also protects against
+        // busy backgrounds and subjects whose colors resemble the backdrop.
+        let insideCount = 0;
+        let removedCount = 0;
         for (let i = 0; i < total; i++) {
-          if (!inside[i] || removed[i]) px[i * 4 + 3] = 0;
+          if (inside[i]) {
+            insideCount++;
+            if (removed[i]) removedCount++;
+          }
+        }
+        const removalRatio = insideCount ? removedCount / insideCount : 1;
+        const rejectAutomaticRemoval = removalRatio > 0.38;
+
+        // Pixels outside the lasso are always transparent. Connected background
+        // is removed only when the pass is conservative enough to preserve most
+        // of the selected subject.
+        for (let i = 0; i < total; i++) {
+          if (!inside[i] || (!rejectAutomaticRemoval && removed[i])) px[i * 4 + 3] = 0;
         }
         ctx.putImageData(imageData, 0, 0);
 

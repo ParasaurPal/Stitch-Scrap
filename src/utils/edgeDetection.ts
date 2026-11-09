@@ -1,10 +1,12 @@
 /**
- * Subject-aware sticker cutout.
+ * Guided, edge-snapped sticker cutout.
  *
- * A user-drawn lasso defines the search region. Background is learned from
- * colors immediately inside that lasso and removed only when connected to
- * the lasso boundary. Strong image gradients act as subject-edge barriers,
- * so the cut follows the object rather than the rectangular photo boundary.
+ * The old color flood-fill could classify subject pixels as background. This
+ * implementation never removes pixels based on color similarity. It detects
+ * image gradients, gently snaps the user's lasso toward nearby contours, then
+ * uses that refined contour as the alpha mask. If no convincing edge is found,
+ * it keeps the user's original lasso rather than guessing and destroying the
+ * subject.
  */
 
 export interface EdgeDetectionPoint { x: number; y: number; }
@@ -17,13 +19,9 @@ export interface EdgeDetectionOptions {
   selectionPoints?: EdgeDetectionPoint[];
 }
 
-function median(values: number[]): number {
-  if (!values.length) return 0;
-  values.sort((a, b) => a - b);
-  return values[Math.floor(values.length / 2)];
-}
+type PixelPoint = { x: number; y: number };
 
-function pointInPolygon(x: number, y: number, polygon: EdgeDetectionPoint[]): boolean {
+function pointInPolygon(x: number, y: number, polygon: PixelPoint[]): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const a = polygon[i], b = polygon[j];
@@ -31,6 +29,32 @@ function pointInPolygon(x: number, y: number, polygon: EdgeDetectionPoint[]): bo
       x < ((b.x - a.x) * (y - a.y)) / ((b.y - a.y) || 0.000001) + a.x) inside = !inside;
   }
   return inside;
+}
+
+function resampleClosedPath(points: PixelPoint[], spacing: number): PixelPoint[] {
+  const result: PixelPoint[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    const distance = Math.hypot(b.x - a.x, b.y - a.y);
+    const steps = Math.max(1, Math.ceil(distance / spacing));
+    for (let step = 0; step < steps; step++) {
+      const t = step / steps;
+      result.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
+  }
+  return result;
+}
+
+function smoothPath(points: PixelPoint[]): PixelPoint[] {
+  if (points.length < 5) return points;
+  return points.map((point, i) => {
+    const before = points[(i - 1 + points.length) % points.length];
+    const after = points[(i + 1) % points.length];
+    return {
+      x: point.x * 0.6 + (before.x + after.x) * 0.2,
+      y: point.y * 0.6 + (before.y + after.y) * 0.2,
+    };
+  });
 }
 
 export async function processImageEdgeDetection(
@@ -45,177 +69,126 @@ export async function processImageEdgeDetection(
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
-        const width = img.naturalWidth || img.width;
-        const height = img.naturalHeight || img.height;
-        const polygon = options.selectionPoints && options.selectionPoints.length >= 8
-          ? options.selectionPoints : null;
+        const sourceWidth = img.naturalWidth || img.width;
+        const sourceHeight = img.naturalHeight || img.height;
+        const rawPoints = options.selectionPoints;
+        if (!rawPoints || rawPoints.length < 8) return resolve(imageSrc);
 
-        // Never fall back to tracing the photo rectangle. Without a lasso we
-        // cannot know which object the user wants, so preserve the original.
-        if (!polygon) return resolve(imageSrc);
-
-        const scale = Math.min(1, 1400 / Math.max(width, height));
-        const w = Math.max(1, Math.round(width * scale));
-        const h = Math.max(1, Math.round(height * scale));
+        const scale = Math.min(1, 1800 / Math.max(sourceWidth, sourceHeight));
+        const width = Math.max(1, Math.round(sourceWidth * scale));
+        const height = Math.max(1, Math.round(sourceHeight * scale));
         const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return resolve(imageSrc);
-        ctx.drawImage(img, 0, 0, w, h);
-        const imageData = ctx.getImageData(0, 0, w, h);
-        const px = imageData.data;
-        const total = w * h;
-        const inside = new Uint8Array(total);
-        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-          inside[y * w + x] = pointInPolygon((x + .5) / w, (y + .5) / h, polygon) ? 1 : 0;
-        }
+        ctx.drawImage(img, 0, 0, width, height);
 
-        // Collect a palette of background colors around the complete lasso.
-        // Multiple local colors handle shadows, gradients and uneven lighting.
-        const samples: number[][] = [];
-        const nearestInside = (x: number, y: number) => {
-          const cx = Math.max(0, Math.min(w - 1, Math.round(x)));
-          const cy = Math.max(0, Math.min(h - 1, Math.round(y)));
-          for (let r = 0; r <= 7; r++) {
-            for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-              const xx = cx + dx, yy = cy + dy;
-              if (xx >= 0 && xx < w && yy >= 0 && yy < h && inside[yy * w + xx]) return yy * w + xx;
-            }
-          }
-          return -1;
-        };
-        for (let i = 0; i < polygon.length; i++) {
-          const a = polygon[i], b = polygon[(i + 1) % polygon.length];
-          const ax = a.x * w, ay = a.y * h, bx = b.x * w, by = b.y * h;
-          const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
-          for (let s = 0; s <= steps; s++) {
-            const t = s / steps, index = nearestInside(ax + (bx - ax) * t, ay + (by - ay) * t);
-            if (index >= 0) {
-              const p = index * 4;
-              if (px[p + 3] > 20) samples.push([px[p], px[p + 1], px[p + 2]]);
-            }
-          }
-        }
-        if (!samples.length) return resolve(imageSrc);
-
-        // Thin the palette to evenly distributed samples for fast comparisons.
-        const palette = samples.filter((_, i) => i % Math.max(1, Math.floor(samples.length / 80)) === 0).slice(0, 100);
-        // Keep the color match deliberately conservative. The previous multiplier made
-        // ordinary subject colors look like background and caused large areas to vanish.
-        const threshold = Math.max(18, Math.min(58, options.threshold * 1.35));
-        const colorDistance = (index: number) => {
-          const p = index * 4;
-          let best = Infinity;
-          for (const c of palette) {
-            const dr = px[p] - c[0], dg = px[p + 1] - c[1], db = px[p + 2] - c[2];
-            const d = Math.sqrt(dr * dr + dg * dg + db * db);
-            if (d < best) best = d;
-          }
-          return best;
-        };
-
-        // Sobel-like luminance gradient. High gradients are likely real
-        // subject contours and stop background flood-fill crossing them.
-        const luminance = new Float32Array(total);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
+        const total = width * height;
+        const gray = new Float32Array(total);
         for (let i = 0; i < total; i++) {
           const p = i * 4;
-          luminance[i] = .299 * px[p] + .587 * px[p + 1] + .114 * px[p + 2];
+          gray[i] = 0.299 * pixels[p] + 0.587 * pixels[p + 1] + 0.114 * pixels[p + 2];
         }
-        const gradient = new Float32Array(total);
-        for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
-          const i = y * w + x;
-          const gx = -luminance[i-w-1] + luminance[i-w+1] - 2*luminance[i-1] + 2*luminance[i+1] - luminance[i+w-1] + luminance[i+w+1];
-          const gy = -luminance[i-w-1] - 2*luminance[i-w] - luminance[i-w+1] + luminance[i+w-1] + 2*luminance[i+w] + luminance[i+w+1];
-          gradient[i] = Math.hypot(gx, gy) / 4;
-        }
-        // A stronger barrier protects real subject detail, texture, and internal color changes.
-        const edgeBarrier = Math.max(34, threshold * .9);
-        const visited = new Uint8Array(total);
-        const removed = new Uint8Array(total);
-        const queue = new Int32Array(total);
-        let head = 0, tail = 0;
-        const enqueue = (i: number) => {
-          if (i < 0 || i >= total || visited[i] || !inside[i]) return;
-          visited[i] = 1;
-          const p = i * 4;
-          if (px[p + 3] < 20) { removed[i] = 1; return; }
-          if (colorDistance(i) > threshold * 1.55) return;
-          queue[tail++] = i;
-        };
 
-        // Seed the fill all along the user's lasso, not the image perimeter.
-        for (let i = 0; i < polygon.length; i++) {
-          const a = polygon[i], b = polygon[(i + 1) % polygon.length];
-          const ax = a.x * w, ay = a.y * h, bx = b.x * w, by = b.y * h;
-          const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 1.5));
-          for (let s = 0; s <= steps; s++) {
-            const t = s / steps;
-            const index = nearestInside(ax + (bx - ax) * t, ay + (by - ay) * t);
-            if (index >= 0) enqueue(index);
+        // Sobel gradient magnitude. Strong gradients are likely object contours.
+        const edge = new Float32Array(total);
+        for (let y = 1; y < height - 1; y++) {
+          for (let x = 1; x < width - 1; x++) {
+            const i = y * width + x;
+            const gx =
+              -gray[i - width - 1] + gray[i - width + 1] -
+              2 * gray[i - 1] + 2 * gray[i + 1] -
+              gray[i + width - 1] + gray[i + width + 1];
+            const gy =
+              -gray[i - width - 1] - 2 * gray[i - width] - gray[i - width + 1] +
+              gray[i + width - 1] + 2 * gray[i + width] + gray[i + width + 1];
+            edge[i] = Math.hypot(gx, gy) / 4;
           }
         }
 
-        while (head < tail) {
-          const i = queue[head++];
-          removed[i] = 1;
-          const x = i % w, y = Math.floor(i / w);
-          const neighbors = [x > 0 ? i - 1 : -1, x + 1 < w ? i + 1 : -1, y > 0 ? i - w : -1, y + 1 < h ? i + w : -1];
-          for (const n of neighbors) {
-            if (n < 0 || visited[n] || !inside[n]) continue;
-            // Do not let the background leak through a strong subject edge.
-            if (gradient[n] > edgeBarrier) { visited[n] = 1; continue; }
-            enqueue(n);
+        const original = rawPoints.map(point => ({
+          x: Math.max(0, Math.min(width - 1, point.x * width)),
+          y: Math.max(0, Math.min(height - 1, point.y * height)),
+        }));
+        const originalPath = resampleClosedPath(original, 3);
+        const searchRadius = Math.max(8, Math.min(26, Math.round(Math.min(width, height) * 0.018)));
+        const minEdgeStrength = Math.max(22, Math.min(72, options.threshold * 1.05));
+        const snapped: PixelPoint[] = [];
+
+        // Snap each lasso sample only to a nearby, strong edge. Distance is
+        // penalized so a distant background texture cannot pull the outline away.
+        for (const point of originalPath) {
+          let best = point;
+          let bestScore = minEdgeStrength * 0.72;
+          const cx = Math.round(point.x), cy = Math.round(point.y);
+          for (let dy = -searchRadius; dy <= searchRadius; dy++) {
+            for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+              const distance = Math.hypot(dx, dy);
+              if (distance > searchRadius) continue;
+              const x = cx + dx, y = cy + dy;
+              if (x < 1 || x >= width - 1 || y < 1 || y >= height - 1) continue;
+              const index = y * width + x;
+              const strength = edge[index];
+              const score = strength / (1 + distance * 0.11);
+              if (score > bestScore) {
+                bestScore = score;
+                best = { x, y };
+              }
+            }
           }
+          snapped.push(best);
         }
 
-        // Safety check: if automatic removal would erase a substantial part of the
-        // user's selected region, reject that removal pass. A lasso-only crop is
-        // preferable to destroying the subject. This also protects against
-        // busy backgrounds and subjects whose colors resemble the backdrop.
-        let insideCount = 0;
-        let removedCount = 0;
-        for (let i = 0; i < total; i++) {
-          if (inside[i]) {
-            insideCount++;
-            if (removed[i]) removedCount++;
-          }
-        }
-        const removalRatio = insideCount ? removedCount / insideCount : 1;
-        const rejectAutomaticRemoval = removalRatio > 0.38;
+        // Blend adjacent samples to prevent isolated texture edges from creating
+        // spikes while retaining the overall contour shape.
+        let refined = smoothPath(smoothPath(snapped));
 
-        // Pixels outside the lasso are always transparent. Connected background
-        // is removed only when the pass is conservative enough to preserve most
-        // of the selected subject.
-        for (let i = 0; i < total; i++) {
-          if (!inside[i] || (!rejectAutomaticRemoval && removed[i])) px[i * 4 + 3] = 0;
+        // Do not allow a snap to jump across the image or collapse the selection.
+        const originalCenter = original.reduce((acc, p) => ({ x: acc.x + p.x / original.length, y: acc.y + p.y / original.length }), { x: 0, y: 0 });
+        const refinedCenter = refined.reduce((acc, p) => ({ x: acc.x + p.x / refined.length, y: acc.y + p.y / refined.length }), { x: 0, y: 0 });
+        const centerShift = Math.hypot(originalCenter.x - refinedCenter.x, originalCenter.y - refinedCenter.y);
+        if (!Number.isFinite(centerShift) || centerShift > searchRadius * 1.5) refined = originalPath;
+
+        // Rasterize the refined outline as a hard subject mask. Crucially, no
+        // color-based flood fill is used: subject colors/details are never erased.
+        const maskPolygon = refined.length >= 8 ? refined : originalPath;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            if (!pointInPolygon(x + 0.5, y + 0.5, maskPolygon)) {
+              pixels[(y * width + x) * 4 + 3] = 0;
+            }
+          }
         }
         ctx.putImageData(imageData, 0, 0);
 
         if (options.borderWidth > 0) {
           const borderCanvas = document.createElement('canvas');
           const padding = Math.ceil(options.borderWidth * 2 + 16);
-          borderCanvas.width = w + padding * 2;
-          borderCanvas.height = h + padding * 2;
-          const bCtx = borderCanvas.getContext('2d');
-          if (bCtx) {
-            bCtx.save();
-            bCtx.shadowColor = 'rgba(0,0,0,.22)';
-            bCtx.shadowBlur = options.addShadow ? 10 : 0;
-            bCtx.shadowOffsetY = options.addShadow ? 5 : 0;
+          borderCanvas.width = width + padding * 2;
+          borderCanvas.height = height + padding * 2;
+          const borderCtx = borderCanvas.getContext('2d');
+          if (borderCtx) {
+            borderCtx.save();
+            borderCtx.shadowColor = 'rgba(0,0,0,.22)';
+            borderCtx.shadowBlur = options.addShadow ? 10 : 0;
+            borderCtx.shadowOffsetY = options.addShadow ? 5 : 0;
             for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 24) {
-              bCtx.drawImage(canvas, padding + Math.cos(angle) * options.borderWidth, padding + Math.sin(angle) * options.borderWidth);
+              borderCtx.drawImage(canvas, padding + Math.cos(angle) * options.borderWidth, padding + Math.sin(angle) * options.borderWidth);
             }
-            bCtx.globalCompositeOperation = 'source-in';
-            bCtx.fillStyle = options.borderColor || '#fff';
-            bCtx.fillRect(0, 0, borderCanvas.width, borderCanvas.height);
-            bCtx.restore();
-            bCtx.drawImage(canvas, padding, padding);
+            borderCtx.globalCompositeOperation = 'source-in';
+            borderCtx.fillStyle = options.borderColor || '#ffffff';
+            borderCtx.fillRect(0, 0, borderCanvas.width, borderCanvas.height);
+            borderCtx.restore();
+            borderCtx.drawImage(canvas, padding, padding);
             return resolve(borderCanvas.toDataURL('image/png'));
           }
         }
         resolve(canvas.toDataURL('image/png'));
       } catch (error) {
-        console.error('Subject edge detection failed:', error);
+        console.error('Guided edge cutout failed:', error);
         resolve(imageSrc);
       }
     };

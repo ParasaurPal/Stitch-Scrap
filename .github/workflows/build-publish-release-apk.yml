@@ -111,8 +111,8 @@ jobs:
             echo "::error::Add the four stable Android signing secrets listed in the repository instructions before building."
             exit 1
           fi
-          mkdir -p android/keystore
-          echo "$STITCH_KEYSTORE_BASE64" | base64 --decode > android/keystore/stitch-release.jks
+          mkdir -p android/app/keystore
+          echo "$STITCH_KEYSTORE_BASE64" | base64 --decode > android/app/keystore/stitch-release.jks
           python3 <<'PY'
           from pathlib import Path
           import os, re

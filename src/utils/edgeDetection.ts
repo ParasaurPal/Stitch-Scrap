@@ -84,13 +84,26 @@ export async function processImageEdgeDetection(
         // Estimate the background from many points along the image edge or the
         // user's lasso line, making the result less sensitive to a bad corner.
         const samples: number[][] = [];
-        const sampleAt = (x: number, y: number) => {
-          const px = Math.max(0, Math.min(targetW - 1, Math.round(x)));
-          const py = Math.max(0, Math.min(targetH - 1, Math.round(y)));
-          const index = (py * targetW + px) * 4;
-          if (pixels[index + 3] > 20 && inside[py * targetW + px]) {
-            samples.push([pixels[index], pixels[index + 1], pixels[index + 2]]);
+        const findInsideIndex = (x: number, y: number): number => {
+          const cx = Math.max(0, Math.min(targetW - 1, Math.round(x)));
+          const cy = Math.max(0, Math.min(targetH - 1, Math.round(y)));
+          for (let radius = 0; radius <= 4; radius++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+              for (let dx = -radius; dx <= radius; dx++) {
+                const px = cx + dx, py = cy + dy;
+                if (px >= 0 && px < targetW && py >= 0 && py < targetH && inside[py * targetW + px]) {
+                  return py * targetW + px;
+                }
+              }
+            }
           }
+          return -1;
+        };
+        const sampleAt = (x: number, y: number) => {
+          const pixelIndex = findInsideIndex(x, y);
+          if (pixelIndex < 0) return;
+          const index = pixelIndex * 4;
+          if (pixels[index + 3] > 20) samples.push([pixels[index], pixels[index + 1], pixels[index + 2]]);
         };
 
         if (polygon) {
@@ -148,7 +161,8 @@ export async function processImageEdgeDetection(
             const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2));
             for (let step = 0; step <= steps; step++) {
               const t = step / steps;
-              enqueue(Math.round(ay + (by - ay) * t) * targetW + Math.round(ax + (bx - ax) * t));
+              const seed = findInsideIndex(ax + (bx - ax) * t, ay + (by - ay) * t);
+              if (seed >= 0) enqueue(seed);
             }
           }
         } else {

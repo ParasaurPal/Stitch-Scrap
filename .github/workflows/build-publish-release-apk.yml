@@ -1,89 +1,131 @@
-name: Build & Publish Release APK
+name: Build Full Stitch & Scrap Android APK
 
 on:
   push:
-    branches:
-      - main
-      - native-app-development
-    tags:
-      - '*'
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: native-apk-${{ github.ref }}
+  group: full-app-apk-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  Gradle:
+  build:
+    name: Build complete React app for Android
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-    defaults:
-      run:
-        working-directory: native-android
     steps:
-      - name: checkout code
+      - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: setup jdk
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '8.7'
+      - name: Install web app dependencies
+        run: npm install --no-audit --no-fund
 
-      - name: Restore stable debug signing key
-        uses: actions/cache@v5
-        with:
-          path: ~/.android/debug.keystore
-          key: stitch-scrap-native-debug-signing-key-v1
+      - name: Build complete React application
+        run: npm run build
 
-      - name: Accept Android SDK licenses
-        run: yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Generate Capacitor Android project
+        run: npx cap add android
 
-      - name: Create local.properties
-        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      - name: Sync full web application into Android project
+        run: npx cap sync android
 
-      - name: Make Gradle executable
-        run: chmod +x ./gradlew
-
-      - name: Build Release APK
-        run: gradle :app:assembleRelease --stacktrace
-
-      - name: Print APK signing certificate SHA-1
+      - name: Configure immersive full-screen Android activity and signed release
+        shell: bash
         run: |
-          APK_PATH=$(find native-android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -n 1)
-          "$APKSIGNER" verify --print-certs "$APK_PATH" | grep -i "SHA-1"
-        working-directory: .
+          python3 <<'PY'
+          from pathlib import Path
+          import re
 
-      - name: Locate release APK
-        id: apk
+          java_files = list(Path("android/app/src/main/java").rglob("MainActivity.java"))
+          if not java_files:
+              raise SystemExit("Capacitor MainActivity.java was not generated")
+          main_activity = java_files[0]
+          package = re.search(r"^package\s+([\w.]+);", main_activity.read_text(), re.M)
+          if not package:
+              raise SystemExit("Could not determine generated Android package name")
+          main_activity.write_text(f"""package {package.group(1)};
+
+          import android.os.Bundle;
+          import android.view.View;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {{
+              @Override
+              public void onCreate(Bundle savedInstanceState) {{
+                  super.onCreate(savedInstanceState);
+                  applyImmersiveMode();
+              }}
+
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {{
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) applyImmersiveMode();
+              }}
+
+              private void applyImmersiveMode() {{
+                  getWindow().getDecorView().setSystemUiVisibility(
+                      View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                      | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                      | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                      | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                      | View.SYSTEM_UI_FLAG_FULLSCREEN
+                  );
+              }}
+          }}
+          """)
+
+          gradle_file = Path("android/app/build.gradle")
+          gradle = gradle_file.read_text()
+          marker = re.search(r"(buildTypes\\s*\\{\\s*release\\s*\\{)", gradle)
+          if not marker:
+              raise SystemExit("Could not find Android release build type to configure APK signing")
+          insert_at = marker.end()
+          gradle = gradle[:insert_at] + "\\n            signingConfig signingConfigs.debug" + gradle[insert_at:]
+          gradle_file.write_text(gradle)
+          print(f"Configured {main_activity} for immersive full-screen mode and debug-signed release APK")
+          PY
+
+      - name: Build installable release APK
+        working-directory: android
         run: |
-          APK_PATH=$(find native-android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "Found APK: $APK_PATH"
-        working-directory: .
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: stitch-and-scrap-native-release-apk
-          path: ${{ steps.apk.outputs.apk_path }}
+      - name: Name APK after the application
+        run: |
+          APK="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+          test -n "$APK"
+          mkdir -p release
+          cp "$APK" "release/Stitch-and-Scrap.apk"
+          ls -lh "release/Stitch-and-Scrap.apk"
 
-      - name: Publish Release APK
+      - name: Publish directly downloadable APK on GitHub Releases
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ steps.apk.outputs.apk_path }}
-          generate_release_notes: true
+          tag_name: latest
+          name: Latest Stitch & Scrap Android APK
+          body: |
+            Installable Android build of the complete Stitch & Scrap React application.
+            Download **Stitch-and-Scrap.apk** and install it on your Android device.
+          files: release/Stitch-and-Scrap.apk
+          make_latest: true
+          prerelease: false
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

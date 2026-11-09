@@ -1,0 +1,8 @@
+{
+  "appId": "com.stitchandscrap.app",
+  "appName": "Stitch & Scrap",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
